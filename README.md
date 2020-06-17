@@ -1,2 +1,3 @@
-# kiip
-A CRDT base database
+# Kiip
+
+> A CRDT based database
