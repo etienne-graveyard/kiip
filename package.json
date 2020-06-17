@@ -1,0 +1,53 @@
+{
+  "name": "@kiip/core",
+  "version": "0.0.0",
+  "description": "A CRDT based database",
+  "keywords": [
+    "crdt",
+    "database",
+    "local",
+    "p2p",
+    "ts",
+    "typescript"
+  ],
+  "homepage": "https://github.com/etienne-dldc/kiip#readme",
+  "bugs": {
+    "url": "https://github.com/etienne-dldc/kiip/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/etienne-dldc/kiip.git"
+  },
+  "license": "MIT",
+  "author": "Etienne Dldc <e.deladonchamps@gmail.com>",
+  "main": "index.js",
+  "module": "dist/kiip.core.esm.js",
+  "typings": "dist/index.d.ts",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdx build",
+    "codecov": "codecov",
+    "pub": "yarn build && np",
+    "start": "tsdx watch",
+    "test": "tsdx test --coverage"
+  },
+  "dependencies": {
+    "nanoid": "^3.1.10",
+    "suub": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^25.2.2",
+    "codecov": "^3.6.5",
+    "core-js": "3.6.5",
+    "np": "^6.2.3",
+    "tsdx": "^0.13.2",
+    "tslib": "^2.0.0",
+    "typescript": "^3.9.2"
+  }
+}
