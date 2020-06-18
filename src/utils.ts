@@ -16,3 +16,9 @@ export function kiipCallbackFromAsync<T>(exec: () => Promise<T>, onResolve: (val
   });
   return DONE_TOKEN;
 }
+
+export function createKiipCallbackSync<T>(exec: () => T, onResolve: (val: T) => DONE_TOKEN): DONE_TOKEN {
+  const val = exec();
+  onResolve(val);
+  return DONE_TOKEN;
+}
