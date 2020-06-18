@@ -9,3 +9,10 @@ export function createKiipPromise<T>(exec: (resolved: (value: T) => DONE_TOKEN) 
     });
   });
 }
+
+export function kiipCallbackFromAsync<T>(exec: () => Promise<T>, onResolve: (val: T) => DONE_TOKEN): DONE_TOKEN {
+  exec().then(val => {
+    onResolve(val);
+  });
+  return DONE_TOKEN;
+}
