@@ -1,6 +1,7 @@
 import { MerkleTree } from './MerkleTree';
 import { SubscribeMethod } from 'suub';
 import { Timestamp } from './Timestamp';
+import { DONE_TOKEN } from './utils';
 
 export interface KiipFragment {
   documentId: string;
@@ -53,16 +54,21 @@ export interface KiipDocumentFacade<Schema extends KiipSchema> {
 export type OnFragment = (fragment: KiipFragment) => void;
 
 export interface KiipDatabase<Transaction> {
-  withTransaction<T>(exec: (t: Transaction) => Promise<T>): Promise<T>;
-  getDocuments(t: Transaction): Promise<Array<KiipDocumentInternal>>;
-  getDocument(t: Transaction, documentId: string): Promise<KiipDocumentInternal>;
-  addDocument(t: Transaction, document: KiipDocumentInternal): Promise<void>;
-  addFragments(t: Transaction, fragments: Array<KiipFragment>): Promise<void>;
+  withTransaction<T>(exec: (t: Transaction, done: (val: T) => DONE_TOKEN) => DONE_TOKEN): Promise<T>;
+  getDocuments(t: Transaction, onResolve: (documents: Array<KiipDocumentInternal>) => DONE_TOKEN): DONE_TOKEN;
+  getDocument(
+    t: Transaction,
+    documentId: string,
+    onResolve: (document: KiipDocumentInternal) => DONE_TOKEN
+  ): DONE_TOKEN;
+  addDocument(t: Transaction, document: KiipDocumentInternal, onResolve: () => DONE_TOKEN): DONE_TOKEN;
+  addFragments(t: Transaction, fragments: Array<KiipFragment>, onResolve: () => DONE_TOKEN): DONE_TOKEN;
   getFragmentsSince(
     t: Transaction,
     documentId: string,
     timestamp: Timestamp,
-    skipNodeId: string
-  ): Promise<Array<KiipFragment>>;
-  onEachFragment(t: Transaction, documentId: string, onFragment: OnFragment): Promise<void>;
+    skipNodeId: string,
+    onResolve: (fragments: Array<KiipFragment>) => DONE_TOKEN
+  ): DONE_TOKEN;
+  onEachFragment(t: Transaction, documentId: string, onFragment: OnFragment, onResolve: () => DONE_TOKEN): DONE_TOKEN;
 }

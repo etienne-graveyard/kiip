@@ -1,14 +1,7 @@
-import {
-  KiipSchema,
-  SyncData,
-  KiipDocument,
-  KiipDocumentFacade,
-  KiipFragment,
-  KiipDocumentInternal,
-  KiipDatabase,
-} from './types';
+import { KiipSchema, SyncData, KiipDocument, KiipDocumentFacade, KiipDocumentInternal, KiipDatabase } from './types';
 import { KiipDocumentStore } from './KiipDocumentStore';
 import { nanoid } from 'nanoid';
+import { DONE_TOKEN } from './utils';
 
 export interface Kiip<Schema extends KiipSchema> {
   prepareSync: (documentId: string) => Promise<SyncData>;
@@ -18,9 +11,7 @@ export interface Kiip<Schema extends KiipSchema> {
   createDocument: () => Promise<KiipDocumentFacade<Schema>>;
 }
 
-export function Kiip<Schema extends KiipSchema, Transaction>(
-  database: KiipDatabase<Transaction>
-): Kiip<Schema> {
+export function Kiip<Schema extends KiipSchema, Transaction>(database: KiipDatabase<Transaction>): Kiip<Schema> {
   const stores: { [docId: string]: KiipDocumentStore<Schema, Transaction> } = {};
 
   return {
@@ -28,19 +19,14 @@ export function Kiip<Schema extends KiipSchema, Transaction>(
     handleSync,
     getDocuments,
     getDocument,
-    createDocument,
+    createDocument
   };
 
-  async function addFragmentsWithTransaction(fragments: Array<KiipFragment>): Promise<void> {
-    return database.withTransaction(async (tx) => {
-      database.addFragments(tx, fragments);
-    });
-  }
-
   async function getDocuments(): Promise<Array<{ id: string; name: string }>> {
-    return database.withTransaction(async (tx) => {
-      const docs = await database.getDocuments(tx);
-      return docs.map((doc) => ({ id: doc.id, name: doc.name }));
+    return database.withTransaction((tx, done) => {
+      return database.getDocuments(tx, docs => {
+        return done(docs.map(doc => ({ id: doc.id, name: doc.name })));
+      });
     });
   }
 
@@ -50,70 +36,86 @@ export function Kiip<Schema extends KiipSchema, Transaction>(
   }
 
   async function getDocument(documentId: string): Promise<KiipDocumentFacade<Schema>> {
-    return database.withTransaction(async (tx) => {
-      const { getState, insert, subscribe, update } = await getDocumentStore(tx, documentId);
-      return {
-        id: documentId,
-        handleSync: (data) => handleSync(documentId, data),
-        prepareSync: () => prepareSync(documentId),
-        getState,
-        insert,
-        subscribe,
-        update,
-      };
+    return database.withTransaction((tx, done) => {
+      return getDocumentStore(tx, documentId, ({ getState, insert, subscribe, update }) => {
+        return done({
+          id: documentId,
+          handleSync: data => handleSync(documentId, data),
+          prepareSync: () => prepareSync(documentId),
+          getState,
+          insert,
+          subscribe,
+          update
+        });
+      });
     });
   }
 
   // return current markle
   async function prepareSync(documentId: string): Promise<SyncData> {
-    return database.withTransaction(async (tx) => {
-      let doc = await database.getDocument(tx, documentId);
-      if (!doc) {
-        console.warn(`cannot find document ${documentId}`);
-        throw new Error(`Document not found`);
-      }
-      const store = await getDocumentStore(tx, documentId);
-      return store.prepareSync();
+    return database.withTransaction((tx, done) => {
+      return database.getDocument(tx, documentId, doc => {
+        if (!doc) {
+          console.warn(`cannot find document ${documentId}`);
+          throw new Error(`Document not found`);
+        }
+        return getDocumentStore(tx, documentId, store => {
+          return done(store.prepareSync());
+        });
+      });
     });
   }
 
   // get remote merkle tree and return fragments
   async function handleSync(documentId: string, data: SyncData): Promise<SyncData> {
-    const store = await database.withTransaction(async (tx) => {
-      let doc = await database.getDocument(tx, documentId);
-      if (!doc) {
-        console.warn(`cannot find document ${documentId}`);
-        throw new Error(`Document not found`);
-      }
-      // first apply fragments
-      const store = await getDocumentStore(tx, doc.id);
-      return store;
+    const store = await database.withTransaction<KiipDocumentStore<Schema, Transaction>>((tx, done) => {
+      return database.getDocument(tx, documentId, doc => {
+        if (!doc) {
+          console.warn(`cannot find document ${documentId}`);
+          throw new Error(`Document not found`);
+        }
+        return getDocumentStore(tx, doc.id, store => {
+          return done(store);
+        });
+      });
     });
     return store.handleSync(data);
   }
 
-  async function getDocumentStore(
+  function getDocumentStore(
     tx: Transaction,
-    documentId: string
-  ): Promise<KiipDocumentStore<Schema, Transaction>> {
+    documentId: string,
+    onResolve: (store: KiipDocumentStore<Schema, Transaction>) => DONE_TOKEN
+  ): DONE_TOKEN {
     const store = stores[documentId];
     if (store) {
-      return store;
+      return onResolve(store);
     }
-    let doc = await database.getDocument(tx, documentId);
-    if (!doc) {
+    return database.getDocument(tx, documentId, doc => {
+      if (doc) {
+        return createStore(doc, onResolve);
+      }
       const nodeId = nanoid(16);
       // create doc
       doc = {
         id: documentId,
         nodeId,
-        name: documentId,
+        name: documentId
       };
-      await database.addDocument(tx, doc);
+      return database.addDocument(tx, doc, () => {
+        return createStore(doc, onResolve);
+      });
+    });
+
+    function createStore(
+      doc: KiipDocumentInternal,
+      onResolve: (store: KiipDocumentStore<Schema, Transaction>) => DONE_TOKEN
+    ): DONE_TOKEN {
+      return KiipDocumentStore<Schema, Transaction>(tx, doc.id, doc.nodeId, database, store => {
+        // keep in cache
+        stores[documentId] = store;
+        return onResolve(store);
+      });
     }
-    const newStore = await KiipDocumentStore<Schema, Transaction>(tx, doc.id, doc.nodeId, database);
-    // keep in cache
-    stores[documentId] = newStore;
-    return newStore;
   }
 }
