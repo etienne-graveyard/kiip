@@ -1,4 +1,4 @@
-import { KiipFragment, KiipSchema, KiipState, KiipDatabase, SyncData } from './types';
+import { KiipFragment, KiipSchema, KiipDocumentState, KiipDatabase, SyncData, KiipDocument } from './types';
 import { Clock } from './Clock';
 import { Timestamp } from './Timestamp';
 import { MerkleTree } from './MerkleTree';
@@ -6,40 +6,39 @@ import { Subscription, SubscribeMethod } from 'suub';
 import { nanoid } from 'nanoid';
 import { DONE_TOKEN } from './utils';
 
-interface State {
-  [table: string]: { [raw: string]: { [column: string]: any } };
-}
-
 // latest timestamp for each table-row-column
 interface Latest {
-  [table: string]: { [raw: string]: { [column: string]: string } };
+  [table: string]: { [row: string]: { [column: string]: string } };
 }
 
-export interface KiipDocumentStore<DB extends KiipSchema, Transaction> {
+export interface KiipDocumentStore<Schema extends KiipSchema, Metadata> {
   prepareSync(): SyncData;
   handleSync(data: SyncData): Promise<SyncData>;
-  subscribe: SubscribeMethod<KiipState<DB>>;
-  getState: () => KiipState<DB>;
-  insert<K extends keyof DB>(table: K, doc: DB[K]): Promise<string>;
-  update<K extends keyof DB>(table: K, id: string, doc: Partial<DB[K]>): Promise<void>;
+  subscribe: SubscribeMethod<KiipDocumentState<Schema, Metadata>>;
+  getState: () => KiipDocumentState<Schema, Metadata>;
+  insert<K extends keyof Schema>(table: K, doc: Schema[K]): Promise<string>;
+  update<K extends keyof Schema>(table: K, id: string, doc: Partial<Schema[K]>): Promise<void>;
+  setMeta: (meta: Metadata) => Promise<void>;
 }
 
-export function KiipDocumentStore<Schema extends KiipSchema, Transaction>(
+export function KiipDocumentStore<Schema extends KiipSchema, Transaction, Metadata>(
   tx: Transaction,
-  documentId: string,
-  nodeId: string,
-  database: KiipDatabase<Transaction>,
-  onResolve: (store: KiipDocumentStore<Schema, Transaction>) => DONE_TOKEN
+  document: KiipDocument<Metadata>,
+  database: KiipDatabase<Transaction, Metadata>,
+  onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
 ): DONE_TOKEN {
-  const clock = new Clock(nodeId);
-  let state: State = {} as any;
+  const clock = new Clock(document.nodeId);
+  let state: KiipDocumentState<Schema, Metadata> = {
+    meta: document.meta,
+    data: {} as any
+  };
   const latest: Latest = {};
-  const sub = Subscription() as Subscription<KiipState<Schema>>;
+  const sub = Subscription() as Subscription<KiipDocumentState<Schema, Metadata>>;
 
   // apply all fragments
   return database.onEachFragment(
     tx,
-    documentId,
+    document.id,
     fragment => {
       handleFragments([fragment], 'init');
     },
@@ -50,12 +49,23 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction>(
         subscribe: sub.subscribe,
         getState,
         insert,
-        update
+        update,
+        setMeta
       });
     }
   );
 
-  function getState(): KiipState<Schema> {
+  async function setMeta(newMeta: Metadata): Promise<void> {
+    return database.withTransaction((tx, done) => {
+      return database.setMetadata(tx, document.id, newMeta, () => {
+        state = { ...state, meta: newMeta };
+        sub.emit(state);
+        return done();
+      });
+    });
+  }
+
+  function getState(): KiipDocumentState<Schema, Metadata> {
     return state as any;
   }
 
@@ -63,7 +73,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction>(
     const rowId = nanoid(16);
     const fragments: Array<KiipFragment> = Object.keys(data).map(column => ({
       timestamp: clock.send().toString(),
-      documentId,
+      documentId: document.id,
       table: table as string,
       column,
       row: rowId,
@@ -80,7 +90,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction>(
   async function update<K extends keyof Schema>(table: K, id: string, data: Partial<Schema[K]>): Promise<void> {
     const fragments: Array<KiipFragment> = Object.keys(data).map(column => ({
       timestamp: clock.send().toString(),
-      documentId,
+      documentId: document.id,
       table: table as string,
       column,
       row: id,
@@ -119,7 +129,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction>(
           });
         }
         let timestamp = new Timestamp(diffTime, 0, '0');
-        return database.getFragmentsSince(tx, documentId, timestamp, data.nodeId, fragments => {
+        return database.getFragmentsSince(tx, document.id, timestamp, data.nodeId, fragments => {
           return done({
             nodeId: clock.node,
             merkle: clock.merkle,
@@ -147,22 +157,74 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction>(
     const latestRow = latestTable[row] || {};
     const latestTs = latestRow[column];
     if (latestTs === undefined || latestTs < timestamp) {
+      const prevData = state.data;
       if (mode === 'update') {
-        state = {
-          ...state
-        };
-        state[table] = { ...(state[table] || {}) };
-        state[table][row] = { ...(state[table][row] || {}) };
-        state[table][row][column] = value;
+        const nextData = setDeep(prevData, table, row, column, value);
+        if (nextData !== prevData) {
+          state = {
+            ...state,
+            data: nextData
+          };
+        }
       } else {
-        state[table] = state[table] || {};
-        state[table][row] = state[table][row] || {};
-        state[table][row][column] = value;
+        setDeepMutate(state.data, table, row, column, timestamp);
       }
       // update latest
-      latest[table] = latest[table] || {};
-      latest[table][row] = latest[table][row] || {};
-      latest[table][row][column] = timestamp;
+      setDeepMutate(latest, table, row, column, timestamp);
     }
   }
+}
+
+interface DeepObj<T> {
+  [table: string]: { [row: string]: { [column: string]: T } };
+}
+
+// Note undefined value will return false
+function hasDeep<T>(obj: DeepObj<T>, table: string, row: string, column: string): boolean {
+  return obj[table] && obj[table][row] && obj[table][row][column] !== undefined;
+}
+
+function getDeep<T>(obj: DeepObj<T>, table: string, row: string, column: string): T | undefined {
+  if (hasDeep(obj, table, row, column)) {
+    return obj[table][row][column];
+  }
+  return undefined;
+}
+
+function setDeep<U, T extends DeepObj<U>>(obj: T, table: string, row: string, column: string, value: U): T {
+  const prev = getDeep(obj, table, row, column);
+  if (prev === value) {
+    return obj;
+  }
+  if (obj[table] === undefined) {
+    return {
+      ...obj,
+      [table]: { [row]: { [column]: value } }
+    };
+  }
+  if (obj[table][row] === undefined) {
+    return {
+      ...obj,
+      [table]: {
+        ...obj[table],
+        [row]: { [column]: value }
+      }
+    };
+  }
+  return {
+    ...obj,
+    [table]: {
+      ...obj[table],
+      [row]: {
+        ...obj[table][row],
+        [column]: value
+      }
+    }
+  };
+}
+
+function setDeepMutate<U>(obj: DeepObj<U>, table: string, row: string, column: string, value: U) {
+  obj[table] = obj[table] || {};
+  obj[table][row] = obj[table][row] || {};
+  obj[table][row][column] = value;
 }
