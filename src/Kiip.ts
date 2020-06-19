@@ -109,13 +109,13 @@ export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
       }
       const nodeId = nanoid(16);
       // create doc
-      doc = {
+      const newDoc = (doc = {
         id: documentId,
         nodeId,
         meta: getInitialMetadata()
-      };
-      return database.addDocument(tx, doc, () => {
-        return createStore(doc, onResolve);
+      });
+      return database.addDocument(tx, newDoc, () => {
+        return createStore(newDoc, onResolve);
       });
     });
 

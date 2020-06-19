@@ -60,7 +60,7 @@ export interface KiipDatabase<Transaction, Metadata> {
   getDocument(
     t: Transaction,
     documentId: string,
-    onResolve: (document: KiipDocument<Metadata>) => DONE_TOKEN
+    onResolve: (document: KiipDocument<Metadata> | undefined) => DONE_TOKEN
   ): DONE_TOKEN;
   addDocument(t: Transaction, document: KiipDocument<Metadata>, onResolve: () => DONE_TOKEN): DONE_TOKEN;
   setMetadata(t: Transaction, documentId: string, meta: Metadata, onResolve: () => DONE_TOKEN): DONE_TOKEN;
