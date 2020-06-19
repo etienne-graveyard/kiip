@@ -19,7 +19,7 @@ export class Timestamp {
     return [
       new Date(this.millis).toISOString(),
       ('0000' + this.counter.toString(16).toUpperCase()).slice(-4),
-      ('0000000000000000' + this.node).slice(-16),
+      ('0000000000000000' + this.node).slice(-16)
     ].join('-');
   }
 
@@ -52,7 +52,7 @@ export class Timestamp {
         return new Timestamp(millis, counter, node);
       }
     }
-    throw new Error(`Invalid Timestamp`);
+    throw new Error(`Invalid Timestamp ${timestamp}`);
   }
 
   static ClockDriftError: typeof ClockDriftError;

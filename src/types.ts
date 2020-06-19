@@ -18,11 +18,11 @@ export interface KiipDocument<Matadata> {
   meta: Matadata;
 }
 
-export interface KiipSchema {
+export type KiipSchema = {
   [table: string]: {
     [column: string]: any;
   };
-}
+};
 
 export type KiipDocumentData<Schema extends KiipSchema> = {
   [K in keyof Schema]: {

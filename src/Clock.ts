@@ -69,10 +69,13 @@ export class Clock {
     const lMsg = msg.millis;
     const cMsg = msg.counter;
 
+    // NOTE: We don't do that because it fail when we restore local state
+    // maybe we should have two distinct method for restore and recv ?
+
     // Assert the node id and remote clock drift
-    if (msg.node === this.timestamp.node) {
-      throw new Timestamp.DuplicateNodeError(this.timestamp.node);
-    }
+    // if (msg.node === this.timestamp.node) {
+    //   throw new Timestamp.DuplicateNodeError(this.timestamp.node);
+    // }
     if (lMsg - phys > MAX_DRIFT) {
       throw new Timestamp.ClockDriftError();
     }
