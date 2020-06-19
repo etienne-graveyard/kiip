@@ -14,8 +14,8 @@ export interface KiipOptions<Metadata> {
   keepAlive?: number | true;
 }
 
-export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
-  database: KiipDatabase<Transaction, Metadata>,
+export function Kiip<Schema extends KiipSchema, Metadata>(
+  database: KiipDatabase<unknown>,
   options: KiipOptions<Metadata>
 ): Kiip<Schema, Metadata> {
   const { getInitialMetadata, keepAlive = 3000 } = options;
@@ -30,7 +30,7 @@ export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
   async function getDocuments(): Promise<Array<KiipDocument<Metadata>>> {
     return database.withTransaction((tx, done) => {
       return database.getDocuments(tx, docs => {
-        return done(docs);
+        return done(docs as Array<KiipDocument<Metadata>>);
       });
     });
   }
@@ -95,7 +95,7 @@ export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
   }
 
   function getDocumentStore(
-    tx: Transaction,
+    tx: unknown,
     documentId: string,
     onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
   ): DONE_TOKEN {
@@ -105,7 +105,7 @@ export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
     }
     return database.getDocument(tx, documentId, doc => {
       if (doc) {
-        return createStore(doc, onResolve);
+        return createStore(doc as KiipDocument<Metadata>, onResolve);
       }
       const nodeId = nanoid(16);
       // create doc
@@ -123,7 +123,7 @@ export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
       doc: KiipDocument<Metadata>,
       onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
     ): DONE_TOKEN {
-      return KiipDocumentStore<Schema, Transaction, Metadata>(
+      return KiipDocumentStore<Schema, Metadata>(
         tx,
         doc,
         database,

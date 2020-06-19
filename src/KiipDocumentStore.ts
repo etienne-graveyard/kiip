@@ -21,10 +21,10 @@ export interface KiipDocumentStore<Schema extends KiipSchema, Metadata> {
   setMeta: (meta: Metadata) => Promise<void>;
 }
 
-export function KiipDocumentStore<Schema extends KiipSchema, Transaction, Metadata>(
-  tx: Transaction,
+export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
+  tx: unknown,
   document: KiipDocument<Metadata>,
-  database: KiipDatabase<Transaction, Metadata>,
+  database: KiipDatabase<unknown>,
   onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN,
   keepAlive: number | true,
   onUnmount: () => void
