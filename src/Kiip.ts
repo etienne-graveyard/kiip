@@ -9,10 +9,16 @@ export interface Kiip<Schema extends KiipSchema, Metadata> {
   createDocument: () => Promise<KiipDocumentFacade<Schema, Metadata>>;
 }
 
+export interface KiipOptions<Metadata> {
+  getInitialMetadata: () => Metadata;
+  keepAlive?: number;
+}
+
 export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
   database: KiipDatabase<Transaction, Metadata>,
-  getInitialMetadata: () => Metadata
+  options: KiipOptions<Metadata>
 ): Kiip<Schema, Metadata> {
+  const { getInitialMetadata, keepAlive = 3000 } = options;
   const stores: { [docId: string]: KiipDocumentStore<Schema, Metadata> } = {};
 
   return {
@@ -82,6 +88,12 @@ export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
     return store.handleSync(data);
   }
 
+  function unmountStore(documentId: string) {
+    if (stores[documentId]) {
+      delete stores[documentId];
+    }
+  }
+
   function getDocumentStore(
     tx: Transaction,
     documentId: string,
@@ -111,11 +123,18 @@ export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
       doc: KiipDocument<Metadata>,
       onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
     ): DONE_TOKEN {
-      return KiipDocumentStore<Schema, Transaction, Metadata>(tx, doc, database, store => {
-        // keep in cache
-        stores[doc.id] = store;
-        return onResolve(store);
-      });
+      return KiipDocumentStore<Schema, Transaction, Metadata>(
+        tx,
+        doc,
+        database,
+        store => {
+          // keep in cache
+          stores[doc.id] = store;
+          return onResolve(store);
+        },
+        keepAlive,
+        () => unmountStore(doc.id)
+      );
     }
   }
 }

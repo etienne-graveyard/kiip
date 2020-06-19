@@ -25,7 +25,9 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction, Metada
   tx: Transaction,
   document: KiipDocument<Metadata>,
   database: KiipDatabase<Transaction, Metadata>,
-  onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
+  onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN,
+  keepAlive: number,
+  onUnmount: () => void
 ): DONE_TOKEN {
   const clock = new Clock(document.nodeId);
   let state: KiipDocumentState<Schema, Metadata> = {
@@ -33,7 +35,19 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction, Metada
     data: {} as any
   };
   const latest: Latest = {};
-  const sub = Subscription() as Subscription<KiipDocumentState<Schema, Metadata>>;
+  const sub = Subscription({
+    onFirstSubscription: () => {
+      cancelUnmount();
+    },
+    onLastUnsubscribe: () => {
+      scheduleUnmount();
+    }
+  }) as Subscription<KiipDocumentState<Schema, Metadata>>;
+
+  let unmountTimer: NodeJS.Timer | null = null;
+
+  // on mount => schedule unmount (might be juste a getState)
+  scheduleUnmount();
 
   // apply all fragments
   return database.onEachFragment(
@@ -54,6 +68,16 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction, Metada
       });
     }
   );
+
+  function scheduleUnmount() {
+    unmountTimer = setTimeout(onUnmount, keepAlive);
+  }
+
+  function cancelUnmount() {
+    if (unmountTimer !== null) {
+      clearTimeout(unmountTimer);
+    }
+  }
 
   async function setMeta(newMeta: Metadata): Promise<void> {
     return database.withTransaction((tx, done) => {
