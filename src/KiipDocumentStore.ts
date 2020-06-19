@@ -26,7 +26,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction, Metada
   document: KiipDocument<Metadata>,
   database: KiipDatabase<Transaction, Metadata>,
   onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN,
-  keepAlive: number,
+  keepAlive: number | true,
   onUnmount: () => void
 ): DONE_TOKEN {
   const clock = new Clock(document.nodeId);
@@ -70,7 +70,9 @@ export function KiipDocumentStore<Schema extends KiipSchema, Transaction, Metada
   );
 
   function scheduleUnmount() {
-    unmountTimer = setTimeout(onUnmount, keepAlive);
+    if (keepAlive !== true) {
+      unmountTimer = setTimeout(onUnmount, keepAlive);
+    }
   }
 
   function cancelUnmount() {

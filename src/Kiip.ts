@@ -11,7 +11,7 @@ export interface Kiip<Schema extends KiipSchema, Metadata> {
 
 export interface KiipOptions<Metadata> {
   getInitialMetadata: () => Metadata;
-  keepAlive?: number;
+  keepAlive?: number | true;
 }
 
 export function Kiip<Schema extends KiipSchema, Transaction, Metadata>(
