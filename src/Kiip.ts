@@ -15,7 +15,7 @@ export interface KiipOptions<Metadata> {
 }
 
 export function Kiip<Schema extends KiipSchema, Metadata>(
-  database: KiipDatabase<unknown>,
+  database: KiipDatabase<any>,
   options: KiipOptions<Metadata>
 ): Kiip<Schema, Metadata> {
   const { getInitialMetadata, keepAlive = 3000 } = options;
