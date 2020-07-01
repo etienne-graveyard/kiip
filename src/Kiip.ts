@@ -1,12 +1,20 @@
-import { KiipSchema, SyncData, KiipDocumentFacade, KiipDocument, KiipDatabase } from './types';
+import { KiipSchema, SyncData, KiipDocument, KiipDatabase, KiipDocumentState } from './types';
 import { KiipDocumentStore } from './KiipDocumentStore';
 import { nanoid } from 'nanoid';
 import { DONE_TOKEN } from './utils';
+import { Subscription, OnUnsubscribed, Unsubscribe, SubscriptionCallback } from 'suub';
 
 export interface Kiip<Schema extends KiipSchema, Metadata> {
   getDocuments: () => Promise<Array<KiipDocument<Metadata>>>;
-  getDocument: (documentId: string) => Promise<KiipDocumentFacade<Schema, Metadata>>;
-  createDocument: () => Promise<KiipDocumentFacade<Schema, Metadata>>;
+  subscribeDocuments: (callback: SubscriptionCallback<Array<KiipDocument<Metadata>>>) => Unsubscribe;
+  getDocumentState: (documentId: string) => Promise<KiipDocumentState<Schema, Metadata>>;
+  getDocumentStore: (documentId: string) => Promise<KiipDocumentStore<Schema, Metadata>>;
+  createDocument: () => Promise<KiipDocumentState<Schema, Metadata>>;
+  insert<K extends keyof Schema>(documentId: string, table: K, doc: Schema[K]): Promise<string>;
+  update<K extends keyof Schema>(documentId: string, table: K, id: string, doc: Partial<Schema[K]>): Promise<void>;
+  setMeta: (documentId: string, meta: Metadata) => Promise<void>;
+  prepareSync(documentId: string): Promise<SyncData>;
+  handleSync(documentId: string, data: SyncData): Promise<SyncData>;
 }
 
 export interface KiipOptions<Metadata> {
@@ -21,11 +29,24 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
   const { getInitialMetadata, keepAlive = 3000 } = options;
   const stores: { [docId: string]: KiipDocumentStore<Schema, Metadata> } = {};
 
+  const documentsSub = Subscription() as Subscription<Array<KiipDocument<Metadata>>>;
+
   return {
     getDocuments,
-    getDocument,
-    createDocument
+    subscribeDocuments,
+    getDocumentState,
+    getDocumentStore,
+    createDocument,
+    prepareSync,
+    handleSync,
+    insert,
+    update,
+    setMeta
   };
+
+  function subscribeDocuments(callback: SubscriptionCallback<Array<KiipDocument<Metadata>>>): Unsubscribe {
+    return database.subscribeDocuments(callback as any);
+  }
 
   async function getDocuments(): Promise<Array<KiipDocument<Metadata>>> {
     return database.withTransaction((tx, done) => {
@@ -35,25 +56,29 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     });
   }
 
-  async function createDocument(): Promise<KiipDocumentFacade<Schema, Metadata>> {
-    const documentId = nanoid();
-    return getDocument(documentId);
+  async function getDocumentState(documentId: string): Promise<KiipDocumentState<Schema, Metadata>> {
+    const store = await getDocumentStore(documentId);
+    return store.getState();
   }
 
-  async function getDocument(documentId: string): Promise<KiipDocumentFacade<Schema, Metadata>> {
+  async function createDocument(): Promise<KiipDocumentState<Schema, Metadata>> {
+    const documentId = nanoid();
+    const store = await getDocumentStore(documentId);
+    return store.getState();
+  }
+
+  async function setMeta(documentId: string, meta: Metadata): Promise<void> {
+    const store = await getDocumentStore(documentId);
+    return store.setMeta(meta);
+  }
+
+  async function getDocumentStore(documentId: string): Promise<KiipDocumentStore<Schema, Metadata>> {
+    const store = stores[documentId];
+    if (store) {
+      return store;
+    }
     return database.withTransaction((tx, done) => {
-      return getDocumentStore(tx, documentId, ({ getState, insert, subscribe, update, setMeta }) => {
-        return done({
-          id: documentId,
-          handleSync: data => handleSync(documentId, data),
-          prepareSync: () => prepareSync(documentId),
-          getState,
-          insert,
-          subscribe,
-          update,
-          setMeta
-        });
-      });
+      return getOrCreateDocumentStore(tx, documentId, done);
     });
   }
 
@@ -65,7 +90,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
           console.warn(`cannot find document ${documentId}`);
           throw new Error(`Document not found`);
         }
-        return getDocumentStore(tx, documentId, store => {
+        return getOrCreateDocumentStore(tx, documentId, store => {
           return done(store.prepareSync());
         });
       });
@@ -80,7 +105,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
           console.warn(`cannot find document ${documentId}`);
           throw new Error(`Document not found`);
         }
-        return getDocumentStore(tx, doc.id, store => {
+        return getOrCreateDocumentStore(tx, doc.id, store => {
           return done(store);
         });
       });
@@ -94,10 +119,25 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     }
   }
 
-  function getDocumentStore(
+  async function insert<K extends keyof Schema>(documentId: string, table: K, doc: Schema[K]): Promise<string> {
+    const store = await getDocumentStore(documentId);
+    return store.insert(table, doc);
+  }
+
+  async function update<K extends keyof Schema>(
+    documentId: string,
+    table: K,
+    id: string,
+    doc: Partial<Schema[K]>
+  ): Promise<void> {
+    const store = await getDocumentStore(documentId);
+    return store.update(table, id, doc);
+  }
+
+  function getOrCreateDocumentStore(
     tx: unknown,
     documentId: string,
-    onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
+    onResolve: (facade: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
   ): DONE_TOKEN {
     const store = stores[documentId];
     if (store) {

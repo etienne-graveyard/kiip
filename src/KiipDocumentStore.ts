@@ -2,7 +2,7 @@ import { KiipFragment, KiipSchema, KiipDocumentState, KiipDatabase, SyncData, Ki
 import { Clock } from './Clock';
 import { Timestamp } from './Timestamp';
 import { MerkleTree } from './MerkleTree';
-import { Subscription, SubscribeMethod } from 'suub';
+import { Subscription, SubscribeMethod, SubscriptionCallback, OnUnsubscribed, Unsubscribe } from 'suub';
 import { nanoid } from 'nanoid';
 import { DONE_TOKEN } from './utils';
 
@@ -12,13 +12,15 @@ interface Latest {
 }
 
 export interface KiipDocumentStore<Schema extends KiipSchema, Metadata> {
-  prepareSync(): SyncData;
-  handleSync(data: SyncData): Promise<SyncData>;
-  subscribe: SubscribeMethod<KiipDocumentState<Schema, Metadata>>;
-  getState: () => KiipDocumentState<Schema, Metadata>;
+  id: string;
   insert<K extends keyof Schema>(table: K, doc: Schema[K]): Promise<string>;
   update<K extends keyof Schema>(table: K, id: string, doc: Partial<Schema[K]>): Promise<void>;
+  subscribe: SubscribeMethod<KiipDocumentState<Schema, Metadata>>;
+  getState: () => KiipDocumentState<Schema, Metadata>;
   setMeta: (meta: Metadata) => Promise<void>;
+  prepareSync(): SyncData;
+  handleSync(data: SyncData): Promise<SyncData>;
+  unmount(): void;
 }
 
 export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
@@ -29,25 +31,23 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
   keepAlive: number | true,
   onUnmount: () => void
 ): DONE_TOKEN {
+  let unmounted = false;
   const clock = new Clock(document.nodeId);
   let state: KiipDocumentState<Schema, Metadata> = {
+    id: document.id,
     meta: document.meta,
     data: {} as any
   };
   const latest: Latest = {};
-  const sub = Subscription({
-    onFirstSubscription: () => {
-      cancelUnmount();
-    },
-    onLastUnsubscribe: () => {
-      scheduleUnmount();
-    }
-  }) as Subscription<KiipDocumentState<Schema, Metadata>>;
+  const sub = Subscription() as Subscription<KiipDocumentState<Schema, Metadata>>;
 
-  let unmountTimer: NodeJS.Timer | null = null;
-
-  // on mount => schedule unmount (might be juste a getState)
-  scheduleUnmount();
+  const unsub = database.subscribeDocument(document.id, doc => {
+    state = {
+      ...state,
+      meta: doc.meta as Metadata
+    };
+    sub.emit(state);
+  });
 
   // apply all fragments
   return database.onEachFragment(
@@ -58,44 +58,69 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
     },
     () => {
       return onResolve({
+        id: document.id,
         prepareSync,
         handleSync,
-        subscribe: sub.subscribe,
+        subscribe,
         getState,
         insert,
         update,
-        setMeta
+        setMeta,
+        unmount
       });
     }
   );
 
-  function scheduleUnmount() {
-    if (keepAlive !== true) {
-      unmountTimer = setTimeout(onUnmount, keepAlive);
+  function throwIfUnmounted() {
+    if (unmounted) {
+      throw new Error(`Store was unmounted !`);
     }
   }
 
-  function cancelUnmount() {
-    if (unmountTimer !== null) {
-      clearTimeout(unmountTimer);
+  function subscribe(
+    callback: SubscriptionCallback<KiipDocumentState<Schema, Metadata>>,
+    onUnsubscribe?: OnUnsubscribed
+  ): Unsubscribe;
+  function subscribe(
+    subId: string,
+    callback: SubscriptionCallback<KiipDocumentState<Schema, Metadata>>,
+    onUnsubscribe?: OnUnsubscribed
+  ): Unsubscribe;
+  function subscribe(...args: Array<any>): Unsubscribe {
+    throwIfUnmounted();
+    return (sub.subscribe as any)(...args);
+  }
+
+  function unmount() {
+    if (unmounted) {
+      console.warn('Already unmounted');
+      return;
     }
+    unmounted = true;
+    unsub();
+    sub.unsubscribeAll();
+    console.log('todo');
+    onUnmount();
   }
 
   async function setMeta(newMeta: Metadata): Promise<void> {
+    throwIfUnmounted();
     return database.withTransaction((tx, done) => {
       return database.setMetadata(tx, document.id, newMeta, () => {
-        state = { ...state, meta: newMeta };
-        sub.emit(state);
+        // state = { ...state, meta: newMeta };
+        // sub.emit(state);
         return done();
       });
     });
   }
 
   function getState(): KiipDocumentState<Schema, Metadata> {
+    throwIfUnmounted();
     return state as any;
   }
 
   async function insert<K extends keyof Schema>(table: K, data: Schema[K]): Promise<string> {
+    throwIfUnmounted();
     const rowId = nanoid(16);
     const fragments: Array<KiipFragment> = Object.keys(data).map(column => ({
       timestamp: clock.send().toString(),
@@ -114,6 +139,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
   }
 
   async function update<K extends keyof Schema>(table: K, id: string, data: Partial<Schema[K]>): Promise<void> {
+    throwIfUnmounted();
     const fragments: Array<KiipFragment> = Object.keys(data).map(column => ({
       timestamp: clock.send().toString(),
       documentId: document.id,
@@ -132,6 +158,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
 
   // return current markle
   function prepareSync(): SyncData {
+    throwIfUnmounted();
     return {
       nodeId: clock.node,
       merkle: clock.merkle,
@@ -142,6 +169,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
 
   // get remote merkle tree and return fragments
   async function handleSync(data: SyncData): Promise<SyncData> {
+    throwIfUnmounted();
     return database.withTransaction((tx, done) => {
       return database.addFragments(tx, data.fragments, () => {
         handleFragments(data.fragments, 'update');
@@ -167,6 +195,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
   }
 
   function handleFragments(fragments: Array<KiipFragment>, mode: 'init' | 'update') {
+    throwIfUnmounted();
     const prevState = state;
     fragments.forEach(fragment => {
       clock.recv(Timestamp.parse(fragment.timestamp));
@@ -178,6 +207,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
   }
 
   function applyFragmentOnState(fragment: KiipFragment, mode: 'init' | 'update') {
+    throwIfUnmounted();
     const { column, table, row, timestamp, value } = fragment;
     const latestTable = latest[table] || {};
     const latestRow = latestTable[row] || {};

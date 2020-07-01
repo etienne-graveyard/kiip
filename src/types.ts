@@ -37,34 +37,31 @@ export interface SyncData {
 }
 
 export interface KiipDocumentState<Schema extends KiipSchema, Metadata> {
+  id: string;
   data: KiipDocumentData<Schema>;
   meta: Metadata;
 }
 
-export interface KiipDocumentFacade<Schema extends KiipSchema, Metadata> {
-  id: string;
-  insert<K extends keyof Schema>(table: K, doc: Schema[K]): Promise<string>;
-  update<K extends keyof Schema>(table: K, id: string, doc: Partial<Schema[K]>): Promise<void>;
-  subscribe: SubscribeMethod<KiipDocumentState<Schema, Metadata>>;
-  getState: () => KiipDocumentState<Schema, Metadata>;
-  setMeta: (meta: Metadata) => Promise<void>;
-  prepareSync(): Promise<SyncData>;
-  handleSync(data: SyncData): Promise<SyncData>;
-}
+export interface KiipDocumentFacade<Schema extends KiipSchema, Metadata> {}
 
 export type OnFragment = (fragment: KiipFragment) => void;
+
+export type Unsubscribe = () => void;
 
 export interface KiipDatabase<Transaction> {
   withTransaction<T>(exec: (t: Transaction, done: (val: T) => DONE_TOKEN) => DONE_TOKEN): Promise<T>;
   getDocuments(t: Transaction, onResolve: (documents: Array<KiipDocument<unknown>>) => DONE_TOKEN): DONE_TOKEN;
+  subscribeDocuments(callback: (documents: Array<KiipDocument<unknown>>) => void): Unsubscribe;
   getDocument(
     t: Transaction,
     documentId: string,
     onResolve: (document: KiipDocument<unknown> | undefined) => DONE_TOKEN
   ): DONE_TOKEN;
+  subscribeDocument(documentId: string, callback: (document: KiipDocument<unknown>) => void): Unsubscribe;
   addDocument(t: Transaction, document: KiipDocument<unknown>, onResolve: () => DONE_TOKEN): DONE_TOKEN;
   setMetadata(t: Transaction, documentId: string, meta: unknown, onResolve: () => DONE_TOKEN): DONE_TOKEN;
   addFragments(t: Transaction, fragments: Array<KiipFragment>, onResolve: () => DONE_TOKEN): DONE_TOKEN;
+  onEachFragment(t: Transaction, documentId: string, onFragment: OnFragment, onResolve: () => DONE_TOKEN): DONE_TOKEN;
   getFragmentsSince(
     t: Transaction,
     documentId: string,
@@ -72,5 +69,4 @@ export interface KiipDatabase<Transaction> {
     skipNodeId: string,
     onResolve: (fragments: Array<KiipFragment>) => DONE_TOKEN
   ): DONE_TOKEN;
-  onEachFragment(t: Transaction, documentId: string, onFragment: OnFragment, onResolve: () => DONE_TOKEN): DONE_TOKEN;
 }
