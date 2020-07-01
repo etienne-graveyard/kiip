@@ -35,6 +35,7 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
   const clock = new Clock(document.nodeId);
   let state: KiipDocumentState<Schema, Metadata> = {
     id: document.id,
+    nodeId: document.nodeId,
     meta: document.meta,
     data: {} as any
   };
@@ -44,7 +45,8 @@ export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
   const unsub = database.subscribeDocument(document.id, doc => {
     state = {
       ...state,
-      meta: doc.meta as Metadata
+      meta: doc.meta as Metadata,
+      nodeId: doc.nodeId
     };
     sub.emit(state);
   });

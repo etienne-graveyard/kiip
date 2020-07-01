@@ -1,5 +1,4 @@
 import { MerkleTree } from './MerkleTree';
-import { SubscribeMethod } from 'suub';
 import { Timestamp } from './Timestamp';
 import { DONE_TOKEN } from './utils';
 
@@ -38,6 +37,7 @@ export interface SyncData {
 
 export interface KiipDocumentState<Schema extends KiipSchema, Metadata> {
   id: string;
+  nodeId: string;
   data: KiipDocumentData<Schema>;
   meta: Metadata;
 }
