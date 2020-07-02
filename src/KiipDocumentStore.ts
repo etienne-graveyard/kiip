@@ -23,7 +23,7 @@ export interface KiipDocumentStore<Schema extends KiipSchema, Metadata> {
   unmount(): void;
 }
 
-export function KiipDocumentStore<Schema extends KiipSchema, Metadata>(
+export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
   tx: unknown,
   document: KiipDocument<Metadata>,
   database: KiipDatabase<unknown>,

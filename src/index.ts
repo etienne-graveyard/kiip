@@ -3,4 +3,5 @@ export { Kiip, KiipOptions } from './Kiip';
 export { MerkleTree } from './MerkleTree';
 export { Timestamp, MutableTimestamp } from './Timestamp';
 export { Clock } from './Clock';
-export { DONE_TOKEN, createKiipPromise, kiipCallbackFromAsync, createKiipCallbackSync } from './utils';
+export { createKiipPromise, kiipCallbackFromAsync, createKiipCallbackSync, DONE_TOKEN } from './utils';
+export { KiipDocumentStore } from './KiipDocumentStore';

@@ -1,5 +1,5 @@
 import { KiipSchema, SyncData, KiipDocument, KiipDatabase, KiipDocumentState } from './types';
-import { KiipDocumentStore } from './KiipDocumentStore';
+import { KiipDocumentStore, createKiipDocumentStore } from './KiipDocumentStore';
 import { nanoid } from 'nanoid';
 import { DONE_TOKEN } from './utils';
 import { Subscription, OnUnsubscribed, Unsubscribe, SubscriptionCallback } from 'suub';
@@ -163,7 +163,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
       doc: KiipDocument<Metadata>,
       onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
     ): DONE_TOKEN {
-      return KiipDocumentStore<Schema, Metadata>(
+      return createKiipDocumentStore<Schema, Metadata>(
         tx,
         doc,
         database,

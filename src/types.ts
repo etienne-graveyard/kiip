@@ -42,8 +42,6 @@ export interface KiipDocumentState<Schema extends KiipSchema, Metadata> {
   meta: Metadata;
 }
 
-export interface KiipDocumentFacade<Schema extends KiipSchema, Metadata> {}
-
 export type OnFragment = (fragment: KiipFragment) => void;
 
 export type Unsubscribe = () => void;
