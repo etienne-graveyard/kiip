@@ -1,6 +1,6 @@
 {
   "name": "@kiip/core",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "A CRDT based database",
   "keywords": [
     "crdt",
