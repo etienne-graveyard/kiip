@@ -43,6 +43,8 @@ export class Timestamp {
    * Converts a fixed-length string timestamp to the structured value
    */
   static parse(timestamp: string): Timestamp {
+    console.log({ timestamp });
+
     const parts = timestamp.split('-');
     if (parts && parts.length === 5) {
       const millis = Date.parse(parts.slice(0, 3).join('-')).valueOf();

@@ -3,8 +3,7 @@ import { Clock } from './Clock';
 import { Timestamp } from './Timestamp';
 import { MerkleTree } from './MerkleTree';
 import { Subscription, SubscribeMethod, SubscriptionCallback, OnUnsubscribed, Unsubscribe } from 'suub';
-import { nanoid } from 'nanoid';
-import { DONE_TOKEN } from './utils';
+import { createShortId, DONE_TOKEN } from './utils';
 
 // latest timestamp for each table-row-column
 interface Latest {
@@ -123,7 +122,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
 
   async function insert<K extends keyof Schema>(table: K, data: Schema[K]): Promise<string> {
     throwIfUnmounted();
-    const rowId = nanoid(16);
+    const rowId = createShortId();
     const fragments: Array<KiipFragment> = Object.keys(data).map(column => ({
       timestamp: clock.send().toString(),
       documentId: document.id,

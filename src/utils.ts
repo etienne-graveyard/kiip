@@ -1,3 +1,5 @@
+import { customAlphabet } from 'nanoid';
+
 const DONE_TOKEN = Symbol('DONE_TOKEN');
 export type DONE_TOKEN = typeof DONE_TOKEN;
 
@@ -22,3 +24,9 @@ export function createKiipCallbackSync<T>(exec: () => T, onResolve: (val: T) => 
   onResolve(val);
   return DONE_TOKEN;
 }
+
+const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+
+export const createId = customAlphabet(ALPHABET, 22);
+
+export const createShortId = customAlphabet(ALPHABET, 16);

@@ -1,7 +1,6 @@
 import { KiipSchema, SyncData, KiipDocument, KiipDatabase, KiipDocumentState } from './types';
 import { KiipDocumentStore, createKiipDocumentStore } from './KiipDocumentStore';
-import { nanoid } from 'nanoid';
-import { DONE_TOKEN } from './utils';
+import { DONE_TOKEN, createId } from './utils';
 import { Subscription, OnUnsubscribed, Unsubscribe, SubscriptionCallback } from 'suub';
 
 export interface Kiip<Schema extends KiipSchema, Metadata> {
@@ -62,7 +61,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
   }
 
   async function createDocument(): Promise<KiipDocumentState<Schema, Metadata>> {
-    const documentId = nanoid();
+    const documentId = createId();
     const store = await getDocumentStore(documentId);
     return store.getState();
   }
@@ -147,7 +146,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
       if (doc) {
         return createStore(doc as KiipDocument<Metadata>, onResolve);
       }
-      const nodeId = nanoid(16);
+      const nodeId = createId();
       // create doc
       const newDoc = (doc = {
         id: documentId,
