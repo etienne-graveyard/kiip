@@ -100,7 +100,6 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
     unmounted = true;
     unsub();
     sub.unsubscribeAll();
-    console.log('todo');
     onUnmount();
   }
 
