@@ -55,24 +55,8 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     });
   }
 
-  async function getDocumentState(documentId: string): Promise<KiipDocumentState<Schema, Metadata>> {
-    const store = await getDocumentStore(documentId);
-    return store.getState();
-  }
-
   async function createDocument(docId?: string): Promise<KiipDocumentState<Schema, Metadata>> {
-    // TODO: validate ID, make sure it's correct and does not already exists !
     const documentId = docId === undefined ? createId() : checkId(docId);
-    if (docId !== undefined) {
-      const doc = await database.withTransaction<KiipDocument<unknown> | undefined>((tx, done) => {
-        return database.getDocument(tx, documentId, doc => {
-          return done(doc);
-        });
-      });
-      if (doc) {
-        throw new Error('Cannot create document because it alrzady exists !');
-      }
-    }
     const store = await getDocumentStore(documentId);
     return store.getState();
   }
@@ -90,6 +74,11 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     return database.withTransaction((tx, done) => {
       return getOrCreateDocumentStore(tx, documentId, done);
     });
+  }
+
+  async function getDocumentState(documentId: string): Promise<KiipDocumentState<Schema, Metadata>> {
+    const store = await getDocumentStore(documentId);
+    return store.getState();
   }
 
   // return current markle
