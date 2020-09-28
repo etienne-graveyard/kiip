@@ -25,8 +25,20 @@ export function createKiipCallbackSync<T>(exec: () => T, onResolve: (val: T) => 
   return DONE_TOKEN;
 }
 
-const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+const isIdReg = new RegExp(`^[${ALPHABET}]{22}$`);
 
 export const createId = customAlphabet(ALPHABET, 22);
 
 export const createShortId = customAlphabet(ALPHABET, 16);
+
+export function checkId(id: string): string {
+  if (typeof id !== 'string') {
+    throw new Error(`Invalid id: expecting string`);
+  }
+  if (isIdReg.test(id)) {
+    return id;
+  }
+  throw new Error(`Invalid id`);
+}

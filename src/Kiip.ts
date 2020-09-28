@@ -1,6 +1,6 @@
 import { KiipSchema, SyncData, KiipDocument, KiipDatabase, KiipDocumentState } from './types';
 import { KiipDocumentStore, createKiipDocumentStore } from './KiipDocumentStore';
-import { DONE_TOKEN, createId } from './utils';
+import { DONE_TOKEN, createId, checkId } from './utils';
 import { Subscription, OnUnsubscribed, Unsubscribe, SubscriptionCallback } from 'suub';
 
 export interface Kiip<Schema extends KiipSchema, Metadata> {
@@ -8,7 +8,7 @@ export interface Kiip<Schema extends KiipSchema, Metadata> {
   subscribeDocuments: (callback: SubscriptionCallback<Array<KiipDocument<Metadata>>>) => Unsubscribe;
   getDocumentState: (documentId: string) => Promise<KiipDocumentState<Schema, Metadata>>;
   getDocumentStore: (documentId: string) => Promise<KiipDocumentStore<Schema, Metadata>>;
-  createDocument: () => Promise<KiipDocumentState<Schema, Metadata>>;
+  createDocument: (documentId?: string) => Promise<KiipDocumentState<Schema, Metadata>>;
   insert<K extends keyof Schema>(documentId: string, table: K, doc: Schema[K]): Promise<string>;
   update<K extends keyof Schema>(documentId: string, table: K, id: string, doc: Partial<Schema[K]>): Promise<void>;
   setMeta: (documentId: string, meta: Metadata) => Promise<void>;
@@ -60,8 +60,19 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     return store.getState();
   }
 
-  async function createDocument(): Promise<KiipDocumentState<Schema, Metadata>> {
-    const documentId = createId();
+  async function createDocument(docId?: string): Promise<KiipDocumentState<Schema, Metadata>> {
+    // TODO: validate ID, make sure it's correct and does not already exists !
+    const documentId = docId === undefined ? createId() : checkId(docId);
+    if (docId !== undefined) {
+      const doc = await database.withTransaction<KiipDocument<unknown> | undefined>((tx, done) => {
+        return database.getDocument(tx, documentId, doc => {
+          return done(doc);
+        });
+      });
+      if (doc) {
+        throw new Error('Cannot create document because it alrzady exists !');
+      }
+    }
     const store = await getDocumentStore(documentId);
     return store.getState();
   }
