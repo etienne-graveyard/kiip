@@ -1,5 +1,5 @@
+import { KiipDatabase, createKiipCallbackSync, createKiipPromise, KiipFragment, KiipDocument } from '@kiip/core';
 import { Subscription } from 'suub';
-import { KiipDatabase, KiipFragment, KiipDocument, createKiipPromise, createKiipCallbackSync } from '../../src';
 
 export type Transaction = null;
 
@@ -9,7 +9,7 @@ export function KiipMemoryDb(): KiipDatabase<Transaction> {
     documents: Array<KiipDocument<unknown>>;
   } = {
     fragments: [],
-    documents: []
+    documents: [],
   };
 
   const documentsSub = Subscription<Array<KiipDocument<unknown>>>();
@@ -20,15 +20,15 @@ export function KiipMemoryDb(): KiipDatabase<Transaction> {
       return documentsSub.subscribe(callback);
     },
     subscribeDocument(documentId, callback) {
-      return documentSub.subscribe(doc => {
+      return documentSub.subscribe((doc) => {
         if (doc.id === documentId) {
           callback(doc);
         }
       });
     },
     withTransaction(exec) {
-      return createKiipPromise(resolve => {
-        return exec(null, val => {
+      return createKiipPromise((resolve) => {
+        return exec(null, (val) => {
           return resolve(val);
         });
       });
@@ -37,7 +37,7 @@ export function KiipMemoryDb(): KiipDatabase<Transaction> {
       return createKiipCallbackSync(() => {
         db = {
           ...db,
-          documents: [...db.documents, document]
+          documents: [...db.documents, document],
         };
         documentsSub.emit(db.documents);
       }, onResolve);
@@ -49,7 +49,7 @@ export function KiipMemoryDb(): KiipDatabase<Transaction> {
     },
     getDocument(_, documentId, onResolve) {
       return createKiipCallbackSync(() => {
-        const doc = db.documents.find(doc => doc.id === documentId);
+        const doc = db.documents.find((doc) => doc.id === documentId);
         if (!doc) {
           return;
         }
@@ -65,7 +65,7 @@ export function KiipMemoryDb(): KiipDatabase<Transaction> {
       return createKiipCallbackSync(() => {
         const tsStr = timestamp.toString();
         const frags: Array<KiipFragment> = [];
-        db.fragments.forEach(frag => {
+        db.fragments.forEach((frag) => {
           if (frag.documentId !== documentId) {
             return;
           }
@@ -81,8 +81,8 @@ export function KiipMemoryDb(): KiipDatabase<Transaction> {
     },
     onEachFragment(_, documentId, onFragment, onResolve) {
       return createKiipCallbackSync(() => {
-        const frags = db.fragments.filter(frag => frag.documentId === documentId);
-        frags.forEach(frag => {
+        const frags = db.fragments.filter((frag) => frag.documentId === documentId);
+        frags.forEach((frag) => {
           onFragment(frag);
         });
       }, onResolve);
@@ -91,22 +91,22 @@ export function KiipMemoryDb(): KiipDatabase<Transaction> {
       return createKiipCallbackSync(() => {
         db = {
           ...db,
-          documents: db.documents.map(doc => {
+          documents: db.documents.map((doc) => {
             if (doc.id !== documentId) {
               return doc;
             }
             return {
               ...doc,
-              meta
+              meta,
             };
-          })
+          }),
         };
-        const newDoc = db.documents.find(doc => doc.id === documentId);
+        const newDoc = db.documents.find((doc) => doc.id === documentId);
         if (newDoc) {
           documentSub.emit(newDoc);
         }
         documentsSub.emit(db.documents);
       }, onResolve);
-    }
+    },
   };
 }

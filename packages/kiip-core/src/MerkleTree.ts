@@ -108,8 +108,7 @@ function insertKey(trie: MerkleTree, key: string, hash: number): MerkleTree {
 // }
 
 function debug(trie: MerkleTree, k: string = '', indent: number = 0): string {
-  const str =
-    ' '.repeat(indent) + (k !== '' ? `k: ${k} ` : '') + `hash: ${trie.hash || '(empty)'}\n`;
+  const str = ' '.repeat(indent) + (k !== '' ? `k: ${k} ` : '') + `hash: ${trie.hash || '(empty)'}\n`;
   return (
     str +
     getKeys(trie)

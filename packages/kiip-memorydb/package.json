@@ -1,0 +1,49 @@
+{
+  "name": "@kiip/memorydb",
+  "version": "2.0.0-alpha.1",
+  "description": "",
+  "keywords": [],
+  "homepage": "https://github.com/etienne-dldc/kiip#readme",
+  "bugs": {
+    "url": "https://github.com/etienne-dldc/kiip/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/etienne-dldc/kiip.git"
+  },
+  "license": "MIT",
+  "author": "Etienne Dldc <e.deladonchamps@gmail.com>",
+  "main": "dist/index.js",
+  "module": "dist/memorydb.esm.js",
+  "typings": "dist/index.d.ts",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdx build",
+    "codecov": "codecov",
+    "pub": "yarn build && np",
+    "start": "tsdx watch",
+    "test": "tsdx test --coverage"
+  },
+  "dependencies": {
+    "suub": "^3.1.0"
+  },
+  "devDependencies": {
+    "@kiip/core": "2.0.0-alpha.1",
+    "@types/jest": "^26.0.14",
+    "codecov": "^3.7.2",
+    "core-js": "3.6.5",
+    "np": "^6.5.0",
+    "tsdx": "^0.14.0",
+    "tslib": "^2.0.1",
+    "typescript": "^3.9.7"
+  },
+  "peerDependencies": {
+    "@kiip/core": "2.0.0-alpha.1"
+  }
+}

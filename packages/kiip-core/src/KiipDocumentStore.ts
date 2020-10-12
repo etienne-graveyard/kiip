@@ -27,7 +27,6 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
   document: KiipDocument<Metadata>,
   database: KiipDatabase<unknown>,
   onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN,
-  keepAlive: number | true,
   onUnmount: () => void
 ): DONE_TOKEN {
   let unmounted = false;
@@ -36,16 +35,16 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
     id: document.id,
     nodeId: document.nodeId,
     meta: document.meta,
-    data: {} as any
+    data: {} as any,
   };
   const latest: Latest = {};
   const sub = Subscription() as Subscription<KiipDocumentState<Schema, Metadata>>;
 
-  const unsub = database.subscribeDocument(document.id, doc => {
+  const unsub = database.subscribeDocument(document.id, (doc) => {
     state = {
       ...state,
       meta: doc.meta as Metadata,
-      nodeId: doc.nodeId
+      nodeId: doc.nodeId,
     };
     sub.emit(state);
   });
@@ -54,7 +53,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
   return database.onEachFragment(
     tx,
     document.id,
-    fragment => {
+    (fragment) => {
       handleFragments([fragment], 'init');
     },
     () => {
@@ -67,7 +66,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
         insert,
         update,
         setMeta,
-        unmount
+        unmount,
       });
     }
   );
@@ -122,13 +121,13 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
   async function insert<K extends keyof Schema>(table: K, data: Schema[K]): Promise<string> {
     throwIfUnmounted();
     const rowId = createShortId();
-    const fragments: Array<KiipFragment> = Object.keys(data).map(column => ({
+    const fragments: Array<KiipFragment> = Object.keys(data).map((column) => ({
       timestamp: clock.send().toString(),
       documentId: document.id,
       table: table as string,
       column,
       row: rowId,
-      value: data[column]
+      value: data[column],
     }));
     return database.withTransaction((tx, done) => {
       return database.addFragments(tx, fragments, () => {
@@ -140,13 +139,13 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
 
   async function update<K extends keyof Schema>(table: K, id: string, data: Partial<Schema[K]>): Promise<void> {
     throwIfUnmounted();
-    const fragments: Array<KiipFragment> = Object.keys(data).map(column => ({
+    const fragments: Array<KiipFragment> = Object.keys(data).map((column) => ({
       timestamp: clock.send().toString(),
       documentId: document.id,
       table: table as string,
       column,
       row: id,
-      value: data[column]
+      value: data[column],
     }));
     return database.withTransaction((tx, done) => {
       return database.addFragments(tx, fragments, () => {
@@ -163,7 +162,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
       nodeId: clock.node,
       merkle: clock.merkle,
       // we are sending the merkle tree so we don't have fragments to send
-      fragments: []
+      fragments: [],
     };
   }
 
@@ -179,15 +178,15 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
           return done({
             nodeId: clock.node,
             merkle: clock.merkle,
-            fragments: []
+            fragments: [],
           });
         }
-        let timestamp = new Timestamp(diffTime, 0, '0');
-        return database.getFragmentsSince(tx, document.id, timestamp, data.nodeId, fragments => {
+        const timestamp = new Timestamp(diffTime, 0, '0');
+        return database.getFragmentsSince(tx, document.id, timestamp, data.nodeId, (fragments) => {
           return done({
             nodeId: clock.node,
             merkle: clock.merkle,
-            fragments
+            fragments,
           });
         });
       });
@@ -197,7 +196,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
   function handleFragments(fragments: Array<KiipFragment>, mode: 'init' | 'local' | 'receive') {
     throwIfUnmounted();
     const prevState = state;
-    fragments.forEach(fragment => {
+    fragments.forEach((fragment) => {
       if (mode === 'init' || mode === 'receive') {
         clock.recv(Timestamp.parse(fragment.timestamp));
       }
@@ -224,7 +223,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
         if (nextData !== prevData) {
           state = {
             ...state,
-            data: nextData
+            data: nextData,
           };
         }
       }
@@ -258,7 +257,7 @@ function setDeep<U, T extends DeepObj<U>>(obj: T, table: string, row: string, co
   if (obj[table] === undefined) {
     return {
       ...obj,
-      [table]: { [row]: { [column]: value } }
+      [table]: { [row]: { [column]: value } },
     };
   }
   if (obj[table][row] === undefined) {
@@ -266,8 +265,8 @@ function setDeep<U, T extends DeepObj<U>>(obj: T, table: string, row: string, co
       ...obj,
       [table]: {
         ...obj[table],
-        [row]: { [column]: value }
-      }
+        [row]: { [column]: value },
+      },
     };
   }
   return {
@@ -276,9 +275,9 @@ function setDeep<U, T extends DeepObj<U>>(obj: T, table: string, row: string, co
       ...obj[table],
       [row]: {
         ...obj[table][row],
-        [column]: value
-      }
-    }
+        [column]: value,
+      },
+    },
   };
 }
 

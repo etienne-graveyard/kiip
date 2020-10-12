@@ -1,7 +1,7 @@
 import { KiipSchema, SyncData, KiipDocument, KiipDatabase, KiipDocumentState } from './types';
 import { KiipDocumentStore, createKiipDocumentStore } from './KiipDocumentStore';
 import { DONE_TOKEN, createId, checkId } from './utils';
-import { Subscription, Unsubscribe, SubscriptionCallback } from 'suub';
+import { Unsubscribe, SubscriptionCallback } from 'suub';
 
 export interface Kiip<Schema extends KiipSchema, Metadata> {
   getDocuments: () => Promise<Array<KiipDocument<Metadata>>>;
@@ -18,17 +18,14 @@ export interface Kiip<Schema extends KiipSchema, Metadata> {
 
 export interface KiipOptions<Metadata> {
   getInitialMetadata: () => Metadata;
-  keepAlive?: number | true;
 }
 
 export function Kiip<Schema extends KiipSchema, Metadata>(
   database: KiipDatabase<any>,
   options: KiipOptions<Metadata>
 ): Kiip<Schema, Metadata> {
-  const { getInitialMetadata, keepAlive = 3000 } = options;
+  const { getInitialMetadata } = options;
   const stores: { [docId: string]: KiipDocumentStore<Schema, Metadata> } = {};
-
-  const documentsSub = Subscription() as Subscription<Array<KiipDocument<Metadata>>>;
 
   return {
     getDocuments,
@@ -40,7 +37,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     handleSync,
     insert,
     update,
-    setMeta
+    setMeta,
   };
 
   function subscribeDocuments(callback: SubscriptionCallback<Array<KiipDocument<Metadata>>>): Unsubscribe {
@@ -49,7 +46,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
 
   async function getDocuments(): Promise<Array<KiipDocument<Metadata>>> {
     return database.withTransaction((tx, done) => {
-      return database.getDocuments(tx, docs => {
+      return database.getDocuments(tx, (docs) => {
         return done(docs as Array<KiipDocument<Metadata>>);
       });
     });
@@ -84,12 +81,12 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
   // return current markle
   async function prepareSync(documentId: string): Promise<SyncData> {
     return database.withTransaction((tx, done) => {
-      return database.getDocument(tx, documentId, doc => {
+      return database.getDocument(tx, documentId, (doc) => {
         if (!doc) {
           console.warn(`cannot find document ${documentId}`);
           throw new Error(`Document not found`);
         }
-        return getOrCreateDocumentStore(tx, documentId, store => {
+        return getOrCreateDocumentStore(tx, documentId, (store) => {
           return done(store.prepareSync());
         });
       });
@@ -99,12 +96,12 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
   // get remote merkle tree and return fragments
   async function handleSync(documentId: string, data: SyncData): Promise<SyncData> {
     const store = await database.withTransaction<KiipDocumentStore<Schema, Metadata>>((tx, done) => {
-      return database.getDocument(tx, documentId, doc => {
+      return database.getDocument(tx, documentId, (doc) => {
         if (!doc) {
           console.warn(`cannot find document ${documentId}`);
           throw new Error(`Document not found`);
         }
-        return getOrCreateDocumentStore(tx, doc.id, store => {
+        return getOrCreateDocumentStore(tx, doc.id, (store) => {
           return done(store);
         });
       });
@@ -142,7 +139,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     if (store) {
       return onResolve(store);
     }
-    return database.getDocument(tx, documentId, doc => {
+    return database.getDocument(tx, documentId, (doc) => {
       if (doc) {
         return createStore(doc as KiipDocument<Metadata>, onResolve);
       }
@@ -151,7 +148,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
       const newDoc = (doc = {
         id: documentId,
         nodeId,
-        meta: getInitialMetadata()
+        meta: getInitialMetadata(),
       });
       return database.addDocument(tx, newDoc, () => {
         return createStore(newDoc, onResolve);
@@ -166,12 +163,11 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
         tx,
         doc,
         database,
-        store => {
+        (store) => {
           // keep in cache
           stores[doc.id] = store;
           return onResolve(store);
         },
-        keepAlive,
         () => unmountStore(doc.id)
       );
     }

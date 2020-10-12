@@ -19,7 +19,7 @@ export class Timestamp {
     return [
       new Date(this.millis).toISOString(),
       ('0000' + this.counter.toString(16).toUpperCase()).slice(-4),
-      this.node
+      this.node,
     ].join('-');
   }
 
