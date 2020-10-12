@@ -45,5 +45,8 @@
   },
   "peerDependencies": {
     "@kiip/core": "2.0.0-alpha.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
