@@ -1,7 +1,7 @@
 import { KiipSchema, SyncData, KiipDocument, KiipDatabase, KiipDocumentState } from './types';
 import { KiipDocumentStore, createKiipDocumentStore } from './KiipDocumentStore';
 import { DONE_TOKEN, createId, checkId } from './utils';
-import { Subscription, OnUnsubscribed, Unsubscribe, SubscriptionCallback } from 'suub';
+import { Subscription, Unsubscribe, SubscriptionCallback } from 'suub';
 
 export interface Kiip<Schema extends KiipSchema, Metadata> {
   getDocuments: () => Promise<Array<KiipDocument<Metadata>>>;
