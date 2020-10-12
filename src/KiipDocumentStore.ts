@@ -132,7 +132,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
     }));
     return database.withTransaction((tx, done) => {
       return database.addFragments(tx, fragments, () => {
-        handleFragments(fragments, 'update');
+        handleFragments(fragments, 'local');
         return done(rowId);
       });
     });
@@ -150,7 +150,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
     }));
     return database.withTransaction((tx, done) => {
       return database.addFragments(tx, fragments, () => {
-        handleFragments(fragments, 'update');
+        handleFragments(fragments, 'local');
         return done();
       });
     });
@@ -172,7 +172,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
     throwIfUnmounted();
     return database.withTransaction((tx, done) => {
       return database.addFragments(tx, data.fragments, () => {
-        handleFragments(data.fragments, 'update');
+        handleFragments(data.fragments, 'receive');
         // then compute response
         const diffTime = MerkleTree.diff(clock.merkle, data.merkle);
         if (diffTime === null) {
@@ -194,19 +194,22 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
     });
   }
 
-  function handleFragments(fragments: Array<KiipFragment>, mode: 'init' | 'update') {
+  function handleFragments(fragments: Array<KiipFragment>, mode: 'init' | 'local' | 'receive') {
     throwIfUnmounted();
     const prevState = state;
     fragments.forEach(fragment => {
-      clock.recv(Timestamp.parse(fragment.timestamp));
-      applyFragmentOnState(fragment, mode);
+      if (mode === 'init' || mode === 'receive') {
+        clock.recv(Timestamp.parse(fragment.timestamp));
+      }
+      const mutations = mode === 'init' ? true : false;
+      applyFragmentOnState(fragment, { mutations });
     });
-    if (state !== prevState && mode === 'update') {
+    if (state !== prevState && mode !== 'init') {
       sub.emit(state as any);
     }
   }
 
-  function applyFragmentOnState(fragment: KiipFragment, mode: 'init' | 'update') {
+  function applyFragmentOnState(fragment: KiipFragment, options: { mutations: boolean }) {
     throwIfUnmounted();
     const { column, table, row, timestamp, value } = fragment;
     const latestTable = latest[table] || {};
@@ -214,7 +217,9 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
     const latestTs = latestRow[column];
     if (latestTs === undefined || latestTs < timestamp) {
       const prevData = state.data;
-      if (mode === 'update') {
+      if (options.mutations) {
+        setDeepMutate(state.data, table, row, column, timestamp);
+      } else {
         const nextData = setDeep(prevData, table, row, column, value);
         if (nextData !== prevData) {
           state = {
@@ -222,8 +227,6 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
             data: nextData
           };
         }
-      } else {
-        setDeepMutate(state.data, table, row, column, timestamp);
       }
       // update latest
       setDeepMutate(latest, table, row, column, timestamp);

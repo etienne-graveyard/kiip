@@ -13,6 +13,7 @@ export class Clock {
   }
 
   private insert(timestamp: Timestamp) {
+    console.log('insert', this.node, timestamp.toString());
     this._merkle = MerkleTree.insert(this._merkle, timestamp);
   }
 
