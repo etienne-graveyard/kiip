@@ -1,6 +1,6 @@
 {
   "name": "@kiip/memorydb",
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.0-alpha.2",
   "description": "",
   "keywords": [],
   "homepage": "https://github.com/etienne-dldc/kiip#readme",
@@ -33,7 +33,7 @@
     "suub": "^3.1.0"
   },
   "devDependencies": {
-    "@kiip/core": "2.0.0-alpha.1",
+    "@kiip/core": "^2.0.0-alpha.2",
     "@types/jest": "^26.0.14",
     "codecov": "^3.7.2",
     "core-js": "3.6.5",
