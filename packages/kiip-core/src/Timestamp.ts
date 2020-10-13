@@ -1,21 +1,21 @@
 import { MurmurHash } from './MurmurHash';
 
 export class Timestamp {
-  protected _state: {
+  protected state: {
     millis: number;
     counter: number;
     node: string;
   };
 
   constructor(millis: number, counter: number, node: string) {
-    this._state = { millis, counter, node };
+    this.state = { millis, counter, node };
   }
 
-  valueOf() {
+  valueOf(): string {
     return this.toString();
   }
 
-  toString() {
+  toString(): string {
     return [
       new Date(this.millis).toISOString(),
       ('0000' + this.counter.toString(16).toUpperCase()).slice(-4),
@@ -23,19 +23,19 @@ export class Timestamp {
     ].join('-');
   }
 
-  get millis() {
-    return this._state.millis;
+  get millis(): number {
+    return this.state.millis;
   }
 
-  get counter() {
-    return this._state.counter;
+  get counter(): number {
+    return this.state.counter;
   }
 
-  get node() {
-    return this._state.node;
+  get node(): string {
+    return this.state.node;
   }
 
-  get hash() {
+  get hash(): number {
     return MurmurHash(this.toString());
   }
 
@@ -48,52 +48,24 @@ export class Timestamp {
       const millis = Date.parse(parts.slice(0, 3).join('-')).valueOf();
       const counter = parseInt(parts[3], 16);
       const node = parts[4];
-      if (!isNaN(millis) && !isNaN(counter)) {
+      if (!Number.isNaN(millis) && !Number.isNaN(counter)) {
         return new Timestamp(millis, counter, node);
       }
     }
     throw new Error(`Invalid Timestamp ${timestamp}`);
   }
-
-  static ClockDriftError: typeof ClockDriftError;
-  static DuplicateNodeError: typeof DuplicateNodeError;
-  static OverflowError: typeof OverflowError;
 }
 
 export class MutableTimestamp extends Timestamp {
-  setMillis(n: number) {
-    this._state.millis = n;
+  setMillis(n: number): void {
+    this.state.millis = n;
   }
 
-  setCounter(n: number) {
-    this._state.counter = n;
+  setCounter(n: number): void {
+    this.state.counter = n;
   }
 
-  static from(timestamp: Timestamp) {
+  static from(timestamp: Timestamp): MutableTimestamp {
     return new MutableTimestamp(timestamp.millis, timestamp.counter, timestamp.node);
   }
 }
-
-class DuplicateNodeError extends Error {
-  constructor(node: string) {
-    super('duplicate node identifier ' + node);
-    Object.setPrototypeOf(this, DuplicateNodeError.prototype);
-  }
-}
-Timestamp.DuplicateNodeError = DuplicateNodeError;
-
-class ClockDriftError extends Error {
-  constructor(...args: Array<string | number>) {
-    super(['maximum clock drift exceeded', ...args].join(' '));
-    Object.setPrototypeOf(this, ClockDriftError.prototype);
-  }
-}
-Timestamp.ClockDriftError = ClockDriftError;
-
-class OverflowError extends Error {
-  constructor() {
-    super('timestamp counter overflow');
-    Object.setPrototypeOf(this, OverflowError.prototype);
-  }
-}
-Timestamp.OverflowError = OverflowError;

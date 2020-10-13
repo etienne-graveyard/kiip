@@ -27,11 +27,9 @@ export function createKiipCallbackSync<T>(exec: () => T, onResolve: (val: T) => 
 
 const ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
-const isIdReg = new RegExp(`^[${ALPHABET}]{22}$`);
+const isIdReg = new RegExp(`^[${ALPHABET}]{16}$`);
 
-export const createId = customAlphabet(ALPHABET, 22);
-
-export const createShortId = customAlphabet(ALPHABET, 16);
+export const createId = customAlphabet(ALPHABET, 16);
 
 export function checkId(id: string): string {
   if (typeof id !== 'string') {

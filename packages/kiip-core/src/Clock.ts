@@ -5,16 +5,15 @@ const MAX_DRIFT = 60000;
 
 export class Clock {
   private timestamp: MutableTimestamp;
-  private _merkle: MerkleTree;
+  private internalMerkle: MerkleTree;
 
   constructor(nodeId: string) {
     this.timestamp = new MutableTimestamp(0, 0, nodeId);
-    this._merkle = {};
+    this.internalMerkle = {};
   }
 
   private insert(timestamp: Timestamp) {
-    console.log('insert', this.node, timestamp.toString());
-    this._merkle = MerkleTree.insert(this._merkle, timestamp);
+    this.internalMerkle = MerkleTree.insert(this.internalMerkle, timestamp);
   }
 
   public get node(): string {
@@ -22,7 +21,7 @@ export class Clock {
   }
 
   public get merkle(): MerkleTree {
-    return this._merkle;
+    return this.internalMerkle;
   }
 
   /**
@@ -45,10 +44,10 @@ export class Clock {
 
     // Check the result for drift and counter overflow
     if (lNew - phys > MAX_DRIFT) {
-      throw new Timestamp.ClockDriftError(lNew, phys, MAX_DRIFT);
+      throw new Clock.ClockDriftError(lNew, phys, MAX_DRIFT);
     }
     if (cNew > 65535) {
-      throw new Timestamp.OverflowError();
+      throw new Clock.OverflowError();
     }
 
     // Repack the logical time/counter
@@ -78,7 +77,7 @@ export class Clock {
     //   throw new Timestamp.DuplicateNodeError(this.timestamp.node);
     // }
     if (lMsg - phys > MAX_DRIFT) {
-      throw new Timestamp.ClockDriftError();
+      throw new Clock.ClockDriftError();
     }
 
     // Unpack the clock.timestamp logical time and counter
@@ -103,10 +102,10 @@ export class Clock {
 
     // Check the result for drift and counter overflow
     if (lNew - phys > MAX_DRIFT) {
-      throw new Timestamp.ClockDriftError();
+      throw new Clock.ClockDriftError();
     }
     if (cNew > 65535) {
-      throw new Timestamp.OverflowError();
+      throw new Clock.OverflowError();
     }
 
     // Repack the logical time/counter
@@ -115,4 +114,32 @@ export class Clock {
 
     this.insert(msg);
   }
+
+  static ClockDriftError: typeof ClockDriftError;
+  static DuplicateNodeError: typeof DuplicateNodeError;
+  static OverflowError: typeof OverflowError;
 }
+
+class DuplicateNodeError extends Error {
+  constructor(node: string) {
+    super('duplicate node identifier ' + node);
+    Object.setPrototypeOf(this, DuplicateNodeError.prototype);
+  }
+}
+Clock.DuplicateNodeError = DuplicateNodeError;
+
+class ClockDriftError extends Error {
+  constructor(...args: Array<string | number>) {
+    super(['maximum clock drift exceeded', ...args].join(' '));
+    Object.setPrototypeOf(this, ClockDriftError.prototype);
+  }
+}
+Clock.ClockDriftError = ClockDriftError;
+
+class OverflowError extends Error {
+  constructor() {
+    super('timestamp counter overflow');
+    Object.setPrototypeOf(this, OverflowError.prototype);
+  }
+}
+Clock.OverflowError = OverflowError;

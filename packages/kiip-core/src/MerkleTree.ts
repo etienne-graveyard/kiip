@@ -16,8 +16,8 @@ export const MerkleTree = {
 };
 
 function insert(trie: MerkleTree, timestamp: Timestamp): MerkleTree {
-  let hash = timestamp.hash;
-  let key = Number((timestamp.millis / 1000 / 60) | 0).toString(3);
+  const hash = timestamp.hash;
+  const key = ((timestamp.millis / 1000 / 60) | 0).toString(3);
   const nextTrie = { ...trie, hash: (trie.hash || 0) ^ hash };
   return insertKey(nextTrie, key, hash);
 }
@@ -32,14 +32,14 @@ function diff(trie1: MerkleTree, trie2: MerkleTree): number | null {
   let k = '';
 
   while (1) {
-    let keyset = new Set([...getKeys(node1), ...getKeys(node2)]);
-    let keys = Array.from(keyset);
+    const keyset = new Set([...getKeys(node1), ...getKeys(node2)]);
+    const keys = Array.from(keyset);
     keys.sort();
 
     // eslint-disable-next-line no-loop-func
-    let diffkey = keys.find((key) => {
-      let next1 = node1[key] || {};
-      let next2 = node2[key] || {};
+    const diffkey = keys.find((key) => {
+      const next1 = node1[key] || {};
+      const next2 = node2[key] || {};
       return next1.hash !== next2.hash;
     });
 
@@ -62,7 +62,7 @@ function getKeys(trie: MerkleTree): Array<MerkleTreeKey> {
 function keyToTimestamp(key: string): number {
   // 16 is the length of the base 3 value of the current time in
   // minutes. Ensure it's padded to create the full value
-  let fullkey = key + '0'.repeat(16 - key.length);
+  const fullkey = key + '0'.repeat(16 - key.length);
 
   // Parse the base 3 representation
   return parseInt(fullkey, 3) * 1000 * 60;
@@ -82,6 +82,22 @@ function insertKey(trie: MerkleTree, key: string, hash: number): MerkleTree {
       hash: (n.hash || 0) ^ hash,
     },
   };
+}
+
+/* istanbul ignore next */
+function debug(trie?: MerkleTree, k: string = '', indent: number = 0): string {
+  if (!trie) {
+    return '';
+  }
+  const str = ' '.repeat(indent) + (k !== '' ? `k: ${k} ` : '') + `hash: ${trie.hash || '(empty)'}\n`;
+  return (
+    str +
+    getKeys(trie)
+      .map((key) => {
+        return debug(trie[key], key, indent + 2);
+      })
+      .join('')
+  );
 }
 
 // function build(timestamps: Array<Timestamp>): MerkleTree {
@@ -106,15 +122,3 @@ function insertKey(trie: MerkleTree, key: string, hash: number): MerkleTree {
 
 //   return next;
 // }
-
-function debug(trie: MerkleTree, k: string = '', indent: number = 0): string {
-  const str = ' '.repeat(indent) + (k !== '' ? `k: ${k} ` : '') + `hash: ${trie.hash || '(empty)'}\n`;
-  return (
-    str +
-    getKeys(trie)
-      .map((key) => {
-        return debug(trie[key]!, key, indent + 2);
-      })
-      .join('')
-  );
-}
