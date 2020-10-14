@@ -64,98 +64,134 @@ export async function KiipIndexedDB(dbName: string): Promise<KiipDatabase<Backen
       });
     },
     withTransaction(exec) {
-      return createKiipPromise((resolve) => {
+      return createKiipPromise((resolve, reject) => {
         const tx: BackendTransaction = db.transaction(['documents', 'fragments'], 'readwrite');
-        return exec(tx, (val) => {
-          return kiipCallbackFromAsync(async () => {
-            await tx.done;
-            return val;
-          }, resolve);
-        });
+        return exec(
+          tx,
+          (val) => {
+            return kiipCallbackFromAsync(
+              async () => {
+                await tx.done;
+                return val;
+              },
+              resolve,
+              reject
+            );
+          },
+          reject
+        );
       });
     },
-    onEachFragment(tx, documentId, onFragment, onResolve) {
-      return kiipCallbackFromAsync(async () => {
-        const fragmentsStore = tx.objectStore('fragments');
-        let cursor = await fragmentsStore.index('byDocument').openCursor(documentId);
-        if (!cursor) {
-          return;
-        }
-        while (cursor) {
-          const fragment = cursor.value;
-          onFragment(fragment);
-          cursor = await cursor.continue();
-        }
-      }, onResolve);
-    },
-    getFragmentsSince(tx, documentId, timestamp, skipNodeId, onResolve) {
-      return kiipCallbackFromAsync(async () => {
-        const fragmentsStore = tx.objectStore('fragments');
-        // find all message after timestamp except the ones emitted by skipNodeId
-        let cursor = await fragmentsStore.index('byDocument').openCursor(documentId);
-        if (!cursor) {
-          return [];
-        }
-        const fragments: Array<KiipFragment> = [];
-        while (cursor) {
-          const ts = Timestamp.parse(cursor.value.timestamp);
-          if (timestamp <= ts && ts.node !== skipNodeId) {
-            fragments.push(cursor.value);
+    onEachFragment(tx, documentId, onFragment, onResolve, onReject) {
+      return kiipCallbackFromAsync(
+        async () => {
+          const fragmentsStore = tx.objectStore('fragments');
+          let cursor = await fragmentsStore.index('byDocument').openCursor(documentId);
+          if (!cursor) {
+            return;
           }
-          cursor = await cursor.continue();
-        }
-        return fragments;
-      }, onResolve);
+          while (cursor) {
+            const fragment = cursor.value;
+            onFragment(fragment);
+            cursor = await cursor.continue();
+          }
+        },
+        onResolve,
+        onReject
+      );
     },
-    getDocuments(tx, onResolve) {
-      return kiipCallbackFromAsync(async () => {
-        const docsStore = tx.objectStore('documents');
-        const docs = await docsStore.getAll();
-        return docs;
-      }, onResolve);
+    getFragmentsSince(tx, documentId, timestamp, skipNodeId, onResolve, onReject) {
+      return kiipCallbackFromAsync(
+        async () => {
+          const fragmentsStore = tx.objectStore('fragments');
+          // find all message after timestamp except the ones emitted by skipNodeId
+          let cursor = await fragmentsStore.index('byDocument').openCursor(documentId);
+          if (!cursor) {
+            return [];
+          }
+          const fragments: Array<KiipFragment> = [];
+          while (cursor) {
+            const ts = Timestamp.parse(cursor.value.timestamp);
+            if (timestamp <= ts && ts.node !== skipNodeId) {
+              fragments.push(cursor.value);
+            }
+            cursor = await cursor.continue();
+          }
+          return fragments;
+        },
+        onResolve,
+        onReject
+      );
     },
-    getDocument(tx, documentId, onResolve) {
-      return kiipCallbackFromAsync(async () => {
-        const doc = await tx.objectStore('documents').get(documentId);
-        if (!doc) {
-          return;
-        }
-        return doc;
-      }, onResolve);
+    getDocuments(tx, onResolve, onReject) {
+      return kiipCallbackFromAsync(
+        async () => {
+          const docsStore = tx.objectStore('documents');
+          const docs = await docsStore.getAll();
+          return docs;
+        },
+        onResolve,
+        onReject
+      );
     },
-    addFragments(tx, fragments, onResolve) {
-      return kiipCallbackFromAsync(async () => {
-        const fragmentsStore = tx.objectStore('fragments');
-        for await (const fragment of fragments) {
-          await fragmentsStore.add(fragment);
-        }
-      }, onResolve);
+    getDocument(tx, documentId, onResolve, onReject) {
+      return kiipCallbackFromAsync(
+        async () => {
+          const doc = await tx.objectStore('documents').get(documentId);
+          if (!doc) {
+            return;
+          }
+          return doc;
+        },
+        onResolve,
+        onReject
+      );
     },
-    addDocument(tx, document, onResolve) {
-      return kiipCallbackFromAsync(async () => {
-        const docsStore = tx.objectStore('documents');
-        await docsStore.add(document);
-        const docs = await docsStore.getAll();
-        documentsSub.emit(docs);
-        documentsChannel.postMessage(docs);
-      }, onResolve);
+    addFragments(tx, fragments, onResolve, onReject) {
+      return kiipCallbackFromAsync(
+        async () => {
+          const fragmentsStore = tx.objectStore('fragments');
+          for await (const fragment of fragments) {
+            await fragmentsStore.add(fragment);
+          }
+        },
+        onResolve,
+        onReject
+      );
     },
-    setMetadata(tx, documentId, meta, onResolve) {
-      return kiipCallbackFromAsync(async () => {
-        const doc = await tx.objectStore('documents').get(documentId);
-        if (!doc) {
-          throw new Error(`Cannot find document ${documentId}`);
-        }
-        await tx.objectStore('documents').put({
-          ...doc,
-          meta,
-        });
-        const docs = await tx.objectStore('documents').getAll();
-        documentsSub.emit(docs);
-        documentsChannel.postMessage(docs);
-        documentSub.emit(doc);
-        documentChannel.postMessage(doc);
-      }, onResolve);
+    addDocument(tx, document, onResolve, onReject) {
+      return kiipCallbackFromAsync(
+        async () => {
+          const docsStore = tx.objectStore('documents');
+          await docsStore.add(document);
+          const docs = await docsStore.getAll();
+          documentsSub.emit(docs);
+          documentsChannel.postMessage(docs);
+        },
+        onResolve,
+        onReject
+      );
+    },
+    setMetadata(tx, documentId, meta, onResolve, onReject) {
+      return kiipCallbackFromAsync(
+        async () => {
+          const doc = await tx.objectStore('documents').get(documentId);
+          if (!doc) {
+            throw new Error(`Cannot find document ${documentId}`);
+          }
+          await tx.objectStore('documents').put({
+            ...doc,
+            meta,
+          });
+          const docs = await tx.objectStore('documents').getAll();
+          documentsSub.emit(docs);
+          documentsChannel.postMessage(docs);
+          documentSub.emit(doc);
+          documentChannel.postMessage(doc);
+        },
+        onResolve,
+        onReject
+      );
     },
   };
 }

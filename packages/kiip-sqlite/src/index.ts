@@ -95,119 +95,151 @@ export function KiipSQLite(path: string, options: Options = {}): KiipDatabase<Tr
       });
     },
     withTransaction(exec) {
-      return createKiipPromise((resolve) => {
+      return createKiipPromise((resolve, reject) => {
         beginQuery.run();
-        return exec(null, (val) => {
-          commitQuery.run();
-          return resolve(val);
-        });
+        return exec(
+          null,
+          (val) => {
+            commitQuery.run();
+            return resolve(val);
+          },
+          reject
+        );
       });
     },
-    addDocument(_tx, document, onResolve) {
-      return createKiipCallbackSync(() => {
-        insertDocumentQuery.run({
-          id: document.id,
-          node_id: document.nodeId,
-          meta: serializeValue(document.meta),
-        });
-        const docs: Array<DatabaseDocument> = findDocumentsQuery.all();
-        const allDocs = docs.map((doc) => ({
-          id: doc.id,
-          nodeId: doc.node_id,
-          meta: deserializeValue(doc.meta),
-        }));
-        documentsSub.emit(allDocs);
-      }, onResolve);
-    },
-    addFragments(_tx, fragments, onResolve) {
-      return createKiipCallbackSync(() => {
-        fragments.forEach((fragment) => {
-          insertFragmentQuery.run({
-            document_id: fragment.documentId,
-            timestamp: fragment.timestamp,
-            table_name: fragment.table,
-            row: fragment.row,
-            column: fragment.column,
-            value: serializeValue(fragment.value),
+    addDocument(_tx, document, onResolve, onReject) {
+      return createKiipCallbackSync(
+        () => {
+          insertDocumentQuery.run({
+            id: document.id,
+            node_id: document.nodeId,
+            meta: serializeValue(document.meta),
           });
-        });
-      }, onResolve);
+          const docs: Array<DatabaseDocument> = findDocumentsQuery.all();
+          const allDocs = docs.map((doc) => ({
+            id: doc.id,
+            nodeId: doc.node_id,
+            meta: deserializeValue(doc.meta),
+          }));
+          documentsSub.emit(allDocs);
+        },
+        onResolve,
+        onReject
+      );
     },
-    getDocument(_, documentId, onResolve) {
-      return createKiipCallbackSync(() => {
-        const doc: DatabaseDocument = findDocumentQuery.get(documentId);
-        if (!doc) {
-          return;
-        }
-        return {
-          id: doc.id,
-          nodeId: doc.node_id,
-          meta: deserializeValue(doc.meta),
-        };
-      }, onResolve);
+    addFragments(_tx, fragments, onResolve, onReject) {
+      return createKiipCallbackSync(
+        () => {
+          fragments.forEach((fragment) => {
+            insertFragmentQuery.run({
+              document_id: fragment.documentId,
+              timestamp: fragment.timestamp,
+              table_name: fragment.table,
+              row: fragment.row,
+              column: fragment.column,
+              value: serializeValue(fragment.value),
+            });
+          });
+        },
+        onResolve,
+        onReject
+      );
     },
-    getDocuments(_, onResolve) {
-      return createKiipCallbackSync(() => {
-        const docs: Array<DatabaseDocument> = findDocumentsQuery.all();
-        return docs.map((doc) => ({
-          id: doc.id,
-          nodeId: doc.node_id,
-          meta: deserializeValue(doc.meta),
-        }));
-      }, onResolve);
+    getDocument(_, documentId, onResolve, onReject) {
+      return createKiipCallbackSync(
+        () => {
+          const doc: DatabaseDocument = findDocumentQuery.get(documentId);
+          if (!doc) {
+            return;
+          }
+          return {
+            id: doc.id,
+            nodeId: doc.node_id,
+            meta: deserializeValue(doc.meta),
+          };
+        },
+        onResolve,
+        onReject
+      );
     },
-    getFragmentsSince(_, documentId, timestamp, skipNodeId, onResolve) {
-      return createKiipCallbackSync(() => {
-        const frags: Array<DatabaseFragment> = findFragmentSinceQuery.all({
-          document_id: documentId,
-          ignore_node: skipNodeId,
-          timestamp: timestamp.toString(),
-        });
-        return frags.map(({ column, document_id, row, table_name, timestamp, value }) => ({
-          documentId: document_id,
-          timestamp,
-          table: table_name,
-          column,
-          row,
-          value: deserializeValue(value),
-        }));
-      }, onResolve);
+    getDocuments(_, onResolve, onReject) {
+      return createKiipCallbackSync(
+        () => {
+          const docs: Array<DatabaseDocument> = findDocumentsQuery.all();
+          return docs.map((doc) => ({
+            id: doc.id,
+            nodeId: doc.node_id,
+            meta: deserializeValue(doc.meta),
+          }));
+        },
+        onResolve,
+        onReject
+      );
     },
-    onEachFragment(_, documentId, onFragment, onResolve) {
-      return createKiipCallbackSync(() => {
-        const frags = findAllFragmentQuery.iterate({ document_id: documentId });
-        let result = frags.next();
-        while (!result.done) {
-          const { column, document_id, row, table_name, timestamp, value }: DatabaseFragment = result.value;
-          onFragment({
+    getFragmentsSince(_, documentId, timestamp, skipNodeId, onResolve, onReject) {
+      return createKiipCallbackSync(
+        () => {
+          const frags: Array<DatabaseFragment> = findFragmentSinceQuery.all({
+            document_id: documentId,
+            ignore_node: skipNodeId,
+            timestamp: timestamp.toString(),
+          });
+          return frags.map(({ column, document_id, row, table_name, timestamp, value }) => ({
             documentId: document_id,
             timestamp,
             table: table_name,
             column,
             row,
             value: deserializeValue(value),
-          });
-          result = frags.next();
-        }
-      }, onResolve);
+          }));
+        },
+        onResolve,
+        onReject
+      );
     },
-    setMetadata(_, documentId, meta, onResolve) {
-      return createKiipCallbackSync(() => {
-        setMetaQuery.run({ document_id: documentId, meta: serializeValue(meta) });
-        const doc: DatabaseDocument = findDocumentQuery.get(documentId);
-        documentSub.emit({
-          id: doc.id,
-          nodeId: doc.node_id,
-          meta: deserializeValue(doc.meta),
-        });
-        const docs: Array<DatabaseDocument> = findDocumentsQuery.all();
-        const allDocs = docs.map((doc) => ({
-          id: doc.id,
-          nodeId: doc.node_id,
-          meta: deserializeValue(doc.meta),
-        }));
-        documentsSub.emit(allDocs);
-      }, onResolve);
+    onEachFragment(_, documentId, onFragment, onResolve, onReject) {
+      return createKiipCallbackSync(
+        () => {
+          const frags = findAllFragmentQuery.iterate({ document_id: documentId });
+          let result = frags.next();
+          while (!result.done) {
+            const { column, document_id, row, table_name, timestamp, value }: DatabaseFragment = result.value;
+            onFragment({
+              documentId: document_id,
+              timestamp,
+              table: table_name,
+              column,
+              row,
+              value: deserializeValue(value),
+            });
+            result = frags.next();
+          }
+        },
+        onResolve,
+        onReject
+      );
+    },
+    setMetadata(_, documentId, meta, onResolve, onReject) {
+      return createKiipCallbackSync(
+        () => {
+          setMetaQuery.run({ document_id: documentId, meta: serializeValue(meta) });
+          const doc: DatabaseDocument = findDocumentQuery.get(documentId);
+          documentSub.emit({
+            id: doc.id,
+            nodeId: doc.node_id,
+            meta: deserializeValue(doc.meta),
+          });
+          const docs: Array<DatabaseDocument> = findDocumentsQuery.all();
+          const allDocs = docs.map((doc) => ({
+            id: doc.id,
+            nodeId: doc.node_id,
+            meta: deserializeValue(doc.meta),
+          }));
+          documentsSub.emit(allDocs);
+        },
+        onResolve,
+        onReject
+      );
     },
   };
 }
