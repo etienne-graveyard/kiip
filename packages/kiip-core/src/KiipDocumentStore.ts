@@ -27,6 +27,7 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
   document: KiipDocument<Metadata>,
   database: KiipDatabase<unknown>,
   onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN,
+  onReject: (error: any) => DONE_TOKEN,
   onUnmount: () => void
 ): DONE_TOKEN {
   let unmounted = false;
@@ -68,7 +69,8 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
         setMeta,
         unmount,
       });
-    }
+    },
+    onReject
   );
 
   function throwIfUnmounted() {
@@ -104,12 +106,18 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
 
   async function setMeta(newMeta: Metadata): Promise<void> {
     throwIfUnmounted();
-    return database.withTransaction((tx, done) => {
-      return database.setMetadata(tx, document.id, newMeta, () => {
-        // state = { ...state, meta: newMeta };
-        // sub.emit(state);
-        return done();
-      });
+    return database.withTransaction((tx, resolve, reject) => {
+      return database.setMetadata(
+        tx,
+        document.id,
+        newMeta,
+        () => {
+          // state = { ...state, meta: newMeta };
+          // sub.emit(state);
+          return resolve();
+        },
+        reject
+      );
     });
   }
 
@@ -129,11 +137,16 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
       row: rowId,
       value: data[column],
     }));
-    return database.withTransaction((tx, done) => {
-      return database.addFragments(tx, fragments, () => {
-        handleFragments(fragments, 'local');
-        return done(rowId);
-      });
+    return database.withTransaction((tx, resolve, reject) => {
+      return database.addFragments(
+        tx,
+        fragments,
+        () => {
+          handleFragments(fragments, 'local');
+          return resolve(rowId);
+        },
+        reject
+      );
     });
   }
 
@@ -147,11 +160,16 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
       row: id,
       value: data[column],
     }));
-    return database.withTransaction((tx, done) => {
-      return database.addFragments(tx, fragments, () => {
-        handleFragments(fragments, 'local');
-        return done();
-      });
+    return database.withTransaction((tx, resolve, reject) => {
+      return database.addFragments(
+        tx,
+        fragments,
+        () => {
+          handleFragments(fragments, 'local');
+          return resolve();
+        },
+        reject
+      );
     });
   }
 
@@ -169,27 +187,39 @@ export function createKiipDocumentStore<Schema extends KiipSchema, Metadata>(
   // get remote merkle tree and return fragments
   async function handleSync(data: SyncData): Promise<SyncData> {
     throwIfUnmounted();
-    return database.withTransaction((tx, done) => {
-      return database.addFragments(tx, data.fragments, () => {
-        handleFragments(data.fragments, 'receive');
-        // then compute response
-        const diffTime = MerkleTree.diff(clock.merkle, data.merkle);
-        if (diffTime === null) {
-          return done({
-            nodeId: clock.node,
-            merkle: clock.merkle,
-            fragments: [],
-          });
-        }
-        const timestamp = new Timestamp(diffTime, 0, '0');
-        return database.getFragmentsSince(tx, document.id, timestamp, data.nodeId, (fragments) => {
-          return done({
-            nodeId: clock.node,
-            merkle: clock.merkle,
-            fragments,
-          });
-        });
-      });
+    return database.withTransaction((tx, resolve, reject) => {
+      return database.addFragments(
+        tx,
+        data.fragments,
+        () => {
+          handleFragments(data.fragments, 'receive');
+          // then compute response
+          const diffTime = MerkleTree.diff(clock.merkle, data.merkle);
+          if (diffTime === null) {
+            return resolve({
+              nodeId: clock.node,
+              merkle: clock.merkle,
+              fragments: [],
+            });
+          }
+          const timestamp = new Timestamp(diffTime, 0, '0');
+          return database.getFragmentsSince(
+            tx,
+            document.id,
+            timestamp,
+            data.nodeId,
+            (fragments) => {
+              return resolve({
+                nodeId: clock.node,
+                merkle: clock.merkle,
+                fragments,
+              });
+            },
+            reject
+          );
+        },
+        reject
+      );
     });
   }
 

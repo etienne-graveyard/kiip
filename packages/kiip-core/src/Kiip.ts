@@ -45,10 +45,14 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
   }
 
   async function getDocuments(): Promise<Array<KiipDocument<Metadata>>> {
-    return database.withTransaction((tx, done) => {
-      return database.getDocuments(tx, (docs) => {
-        return done(docs as Array<KiipDocument<Metadata>>);
-      });
+    return database.withTransaction((tx, resolve, reject) => {
+      return database.getDocuments(
+        tx,
+        (docs) => {
+          return resolve(docs as Array<KiipDocument<Metadata>>);
+        },
+        reject
+      );
     });
   }
 
@@ -68,8 +72,8 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
     if (store) {
       return store;
     }
-    return database.withTransaction((tx, done) => {
-      return getOrCreateDocumentStore(tx, documentId, done);
+    return database.withTransaction((tx, resolve, reject) => {
+      return getOrCreateDocumentStore(tx, documentId, resolve, reject);
     });
   }
 
@@ -80,31 +84,51 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
 
   // return current markle
   async function prepareSync(documentId: string): Promise<SyncData> {
-    return database.withTransaction((tx, done) => {
-      return database.getDocument(tx, documentId, (doc) => {
-        if (!doc) {
-          console.warn(`cannot find document ${documentId}`);
-          throw new Error(`Document not found`);
-        }
-        return getOrCreateDocumentStore(tx, documentId, (store) => {
-          return done(store.prepareSync());
-        });
-      });
+    return database.withTransaction((tx, resolve, reject) => {
+      return database.getDocument(
+        tx,
+        documentId,
+        (doc) => {
+          if (!doc) {
+            console.warn(`cannot find document ${documentId}`);
+            throw new Error(`Document not found`);
+          }
+          return getOrCreateDocumentStore(
+            tx,
+            documentId,
+            (store) => {
+              return resolve(store.prepareSync());
+            },
+            reject
+          );
+        },
+        reject
+      );
     });
   }
 
   // get remote merkle tree and return fragments
   async function handleSync(documentId: string, data: SyncData): Promise<SyncData> {
-    const store = await database.withTransaction<KiipDocumentStore<Schema, Metadata>>((tx, done) => {
-      return database.getDocument(tx, documentId, (doc) => {
-        if (!doc) {
-          console.warn(`cannot find document ${documentId}`);
-          throw new Error(`Document not found`);
-        }
-        return getOrCreateDocumentStore(tx, doc.id, (store) => {
-          return done(store);
-        });
-      });
+    const store = await database.withTransaction<KiipDocumentStore<Schema, Metadata>>((tx, resolve, reject) => {
+      return database.getDocument(
+        tx,
+        documentId,
+        (doc) => {
+          if (!doc) {
+            console.warn(`cannot find document ${documentId}`);
+            throw new Error(`Document not found`);
+          }
+          return getOrCreateDocumentStore(
+            tx,
+            doc.id,
+            (store) => {
+              return resolve(store);
+            },
+            reject
+          );
+        },
+        reject
+      );
     });
     return store.handleSync(data);
   }
@@ -133,31 +157,36 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
   function getOrCreateDocumentStore(
     tx: unknown,
     documentId: string,
-    onResolve: (facade: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
+    onResolve: (facade: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN,
+    onReject: (error: any) => DONE_TOKEN
   ): DONE_TOKEN {
     const store = stores[documentId];
     if (store) {
       return onResolve(store);
     }
-    return database.getDocument(tx, documentId, (doc) => {
-      if (doc) {
-        return createStore(doc as KiipDocument<Metadata>, onResolve);
-      }
-      const nodeId = createId();
-      // create doc
-      const newDoc = (doc = {
-        id: documentId,
-        nodeId,
-        meta: getInitialMetadata(),
-      });
-      return database.addDocument(tx, newDoc, () => {
-        return createStore(newDoc, onResolve);
-      });
-    });
+    return database.getDocument(
+      tx,
+      documentId,
+      (doc) => {
+        if (doc) {
+          return createStore(doc as KiipDocument<Metadata>, onResolve, onReject);
+        }
+        const nodeId = createId();
+        // create doc
+        const newDoc = (doc = {
+          id: documentId,
+          nodeId,
+          meta: getInitialMetadata(),
+        });
+        return database.addDocument(tx, newDoc, () => createStore(newDoc, onResolve, onReject), onReject);
+      },
+      onReject
+    );
 
     function createStore(
       doc: KiipDocument<Metadata>,
-      onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN
+      onResolve: (store: KiipDocumentStore<Schema, Metadata>) => DONE_TOKEN,
+      onReject: (error: any) => DONE_TOKEN
     ): DONE_TOKEN {
       return createKiipDocumentStore<Schema, Metadata>(
         tx,
@@ -168,6 +197,7 @@ export function Kiip<Schema extends KiipSchema, Metadata>(
           stores[doc.id] = store;
           return onResolve(store);
         },
+        onReject,
         () => unmountStore(doc.id)
       );
     }
