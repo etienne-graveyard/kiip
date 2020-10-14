@@ -73,9 +73,9 @@ export class Clock {
     // maybe we should have two distinct method for restore and recv ?
 
     // Assert the node id and remote clock drift
-    // if (msg.node === this.timestamp.node) {
-    //   throw new Timestamp.DuplicateNodeError(this.timestamp.node);
-    // }
+    if (msg.node === this.timestamp.node) {
+      throw new Clock.DuplicateNodeError(this.timestamp.node);
+    }
     if (lMsg - phys > MAX_DRIFT) {
       throw new Clock.ClockDriftError();
     }

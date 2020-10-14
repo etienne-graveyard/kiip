@@ -1,4 +1,4 @@
-import { MurmurHash } from './MurmurHash';
+import { MurmurHash } from '../src/MurmurHash';
 import { TextEncoder } from 'util';
 
 if (typeof TextEncoder === 'undefined') {

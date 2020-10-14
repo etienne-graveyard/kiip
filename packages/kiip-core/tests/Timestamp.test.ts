@@ -1,6 +1,6 @@
-import { MurmurHash } from './MurmurHash';
-import { Timestamp, MutableTimestamp } from './Timestamp';
 import { TextEncoder } from 'util';
+import { MurmurHash } from '../src/MurmurHash';
+import { Timestamp, MutableTimestamp } from '../src/Timestamp';
 
 if (typeof TextEncoder === 'undefined') {
   global.TextEncoder = TextEncoder;

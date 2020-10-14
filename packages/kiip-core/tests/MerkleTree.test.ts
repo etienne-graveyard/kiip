@@ -1,7 +1,7 @@
-import { MerkleTree } from './MerkleTree';
-import { Timestamp } from './Timestamp';
 import { TextEncoder } from 'util';
-import { MurmurHash } from './MurmurHash';
+import { MerkleTree } from '../src/MerkleTree';
+import { Timestamp } from '../src/Timestamp';
+import { MurmurHash } from '../src/MurmurHash';
 
 if (typeof TextEncoder === 'undefined') {
   global.TextEncoder = TextEncoder;
