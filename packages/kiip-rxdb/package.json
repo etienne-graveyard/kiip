@@ -1,6 +1,6 @@
 {
   "name": "@kiip/rxdb",
-  "version": "2.0.0-alpha.3",
+  "version": "2.0.0-alpha.4",
   "description": "RxDB Database layer for kiip",
   "keywords": [],
   "homepage": "https://github.com/etienne-dldc/kiip#readme",
@@ -33,7 +33,7 @@
     "rxdb": "^9.6.0"
   },
   "devDependencies": {
-    "@kiip/core": "^2.0.0-alpha.3",
+    "@kiip/core": "^2.0.0-alpha.4",
     "@types/jest": "^26.0.13",
     "codecov": "^3.7.2",
     "core-js": "3.6.5",

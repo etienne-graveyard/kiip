@@ -1,6 +1,6 @@
 {
   "name": "@kiip/server",
-  "version": "2.0.0-alpha.3",
+  "version": "2.0.0-alpha.4",
   "description": "Server for Kiip",
   "keywords": [],
   "homepage": "https://github.com/etienne-dldc/kiip#readme",
@@ -35,7 +35,7 @@
     "zod": "^1.11.8"
   },
   "devDependencies": {
-    "@kiip/core": "^2.0.0-alpha.3",
+    "@kiip/core": "^2.0.0-alpha.4",
     "@types/jest": "^26.0.14",
     "codecov": "^3.7.2",
     "core-js": "3.6.5",
