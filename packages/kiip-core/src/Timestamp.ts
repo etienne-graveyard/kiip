@@ -1,3 +1,4 @@
+import { COUNTER_BASE, COUNTER_LENGTH } from './constants';
 import { MurmurHash } from './MurmurHash';
 
 export class Timestamp {
@@ -18,7 +19,7 @@ export class Timestamp {
   toString(): string {
     return [
       new Date(this.millis).toISOString(),
-      ('0000' + this.counter.toString(16).toUpperCase()).slice(-4),
+      ('0'.repeat(COUNTER_LENGTH) + this.counter.toString(COUNTER_BASE).toUpperCase()).slice(-COUNTER_LENGTH),
       this.node,
     ].join('-');
   }
@@ -46,7 +47,7 @@ export class Timestamp {
     const parts = timestamp.split('-');
     if (parts && parts.length === 5) {
       const millis = Date.parse(parts.slice(0, 3).join('-')).valueOf();
-      const counter = parseInt(parts[3], 16);
+      const counter = parseInt(parts[3], COUNTER_BASE);
       const node = parts[4];
       if (!Number.isNaN(millis) && !Number.isNaN(counter)) {
         return new Timestamp(millis, counter, node);

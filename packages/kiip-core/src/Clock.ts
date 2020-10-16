@@ -1,7 +1,6 @@
 import { Timestamp, MutableTimestamp } from './Timestamp';
 import { MerkleTree } from './MerkleTree';
-
-const MAX_DRIFT = 60000;
+import { MAX_COUNTER, MAX_DRIFT } from './constants';
 
 export class Clock {
   private timestamp: MutableTimestamp;
@@ -46,7 +45,7 @@ export class Clock {
     if (lNew - phys > MAX_DRIFT) {
       throw new Clock.ClockDriftError(lNew, phys, MAX_DRIFT);
     }
-    if (cNew > 65535) {
+    if (cNew > MAX_COUNTER) {
       throw new Clock.OverflowError();
     }
 
@@ -104,7 +103,7 @@ export class Clock {
     if (lNew - phys > MAX_DRIFT) {
       throw new Clock.ClockDriftError();
     }
-    if (cNew > 65535) {
+    if (cNew > MAX_COUNTER) {
       throw new Clock.OverflowError();
     }
 

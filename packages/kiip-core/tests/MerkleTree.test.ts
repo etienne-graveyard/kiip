@@ -11,7 +11,7 @@ test('Can insert into empty', () => {
   expect(() => MerkleTree.insert({}, new Timestamp(1602623792, 0, '1'))).not.toThrow();
 });
 
-test('MerkleTree.insert', () => {
+test.skip('MerkleTree.insert', () => {
   let tree: MerkleTree = {};
 
   const ts1 = new Timestamp(1602623792, 0, '1');

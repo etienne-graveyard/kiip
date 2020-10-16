@@ -1,4 +1,5 @@
 import { Timestamp } from './Timestamp';
+import { CLOCK_PRECISION, MERKLE_KEY_LENGTH } from './constants';
 
 type MerkleTreeKey = '0' | '1' | '2';
 
@@ -17,7 +18,7 @@ export const MerkleTree = {
 
 function insert(trie: MerkleTree, timestamp: Timestamp): MerkleTree {
   const hash = timestamp.hash;
-  const key = ((timestamp.millis / 1000 / 60) | 0).toString(3);
+  const key = (timestamp.millis / CLOCK_PRECISION).toString(3);
   const nextTrie = { ...trie, hash: (trie.hash || 0) ^ hash };
   return insertKey(nextTrie, key, hash);
 }
@@ -36,7 +37,6 @@ function diff(trie1: MerkleTree, trie2: MerkleTree): number | null {
     const keys = Array.from(keyset);
     keys.sort();
 
-    // eslint-disable-next-line no-loop-func
     const diffkey = keys.find((key) => {
       const next1 = node1[key] || {};
       const next2 = node2[key] || {};
@@ -62,10 +62,10 @@ function getKeys(trie: MerkleTree): Array<MerkleTreeKey> {
 function keyToTimestamp(key: string): number {
   // 16 is the length of the base 3 value of the current time in
   // minutes. Ensure it's padded to create the full value
-  const fullkey = key + '0'.repeat(16 - key.length);
+  const fullkey = key + '0'.repeat(MERKLE_KEY_LENGTH - key.length);
 
   // Parse the base 3 representation
-  return parseInt(fullkey, 3) * 1000 * 60;
+  return parseInt(fullkey, 3) * CLOCK_PRECISION;
 }
 
 function insertKey(trie: MerkleTree, key: string, hash: number): MerkleTree {

@@ -1,4 +1,4 @@
-// Given a string and an optional seed as an int, returns a 32 bit hash
+// Given a string and an optional seed as an int, returns a 32 bit hash (8 char base 16)
 // using the x86 flavor of MurmurHash3, as an unsigned int.
 export function MurmurHash(key: string, seed: number = 0): number {
   const remainder = key.length % 4;
@@ -50,6 +50,16 @@ export function MurmurHash(key: string, seed: number = 0): number {
   h1 = x86Fmix(h1);
 
   return h1 >>> 0;
+}
+
+// Returns a 16 char base 4 murmur hash
+export function MurmurHashBase4(key: string, seed?: number): string {
+  return ('00000000' + MurmurHash(key, seed).toString(4)).slice(-16);
+}
+
+// Returns a 8 char base 16 murmur hash
+export function MurmurHashHex(key: string, seed?: number): string {
+  return ('00000000' + MurmurHash(key, seed).toString(16)).slice(-8);
 }
 
 // Given two 32bit ints, returns the two multiplied together as a 32bit int.
