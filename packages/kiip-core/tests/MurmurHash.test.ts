@@ -25,11 +25,27 @@ test('MurmurHash', () => {
   expect(MurmurHash('1970-01-19T13:10:23.793Z-0001-1')).toBe(2807268460);
   expect(MurmurHash('1970-01-19T13:10:23.793Z-0001-')).toBe(557780598);
   expect(MurmurHash('1970-01-19T13:10:23.793Z-0001')).toBe(3170371958);
+
+  expect(MurmurHash('1602510027-0000-8810')).toBe(0);
+
   expect(MurmurHash('', 82412784)).toBe(2896484089);
+});
+
+test('Combine', () => {
+  expect(
+    MurmurHash('1602623793-0000-0001') ^
+      MurmurHash('1602623794-0000-0005') ^
+      MurmurHash('1602623794-0000-0006') ^
+      MurmurHash('1602623794-0000-0007')
+  ).toBe(1666476394);
+
+  expect(1666476394 ^ MurmurHash('1602623794-0000-0020')).toBe(1728545697);
 });
 
 test('MurmurHashHex', () => {
   expect(MurmurHashHex('')).toBe('00000000');
+
+  expect(MurmurHashHex('1602623794-0000-0003')).toBe('d316e49c');
 
   expect(MurmurHashHex('1602623794-0000-0020')).toBe('0453eacb');
 
@@ -41,9 +57,12 @@ test('MurmurHashHex', () => {
   expect(MurmurHashHex('1602623795-0000-2418')).toBe('0000ab37');
   expect(MurmurHashHex('1602643477-0000-7031')).toBe('0000197e');
 
-  // for (let i = 0; i < 9999; i++) {
-  //   if (MurmurHashHex('1602643477-0000-' + ('0000' + i).slice(-4)).startsWith('000')) {
-  //     console.log(i);
-  //   }
-  // }
+  expect(MurmurHashHex('1602620886-0000-0283')).toBe('000002f4');
+
+  expect(MurmurHashHex('1602610233-0000-0114')).toBe('00000099');
+  expect(MurmurHashHex('1006212175-0000-0000')).toBe('00000010');
+
+  expect(MurmurHashHex('1099459327-0000-0000')).toBe('00000002');
+
+  expect(MurmurHashHex('1602510027-0000-8810')).toBe('00000000');
 });
