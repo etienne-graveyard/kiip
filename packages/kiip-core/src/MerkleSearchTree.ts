@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { MurmurHash } from './MurmurHash';
 
-// (null is empty tree)
 export type MerkleSearchTree = MSTNode | null;
 
 export type MSTList = Array<MSTLeaf | MSTNode>;
@@ -19,18 +17,39 @@ export const MerkleSearchTree = {
   findRootLayer,
   debug,
   build,
+  has,
+  // sync,
 };
+
+// export type SyncMessage = null;
+
+// function sync(tree: MerkleSearchTree, message: SyncInput):  {
+
+// }
+
+function has(tree: MerkleSearchTree, value: MSTLeaf): boolean {
+  if (tree === null) {
+    return false;
+  }
+  const intersect = tree.sub.find((a) => (isLeaf(a) ? a === value : value >= itemMin(a) && value <= itemMax(a)));
+  if (intersect === undefined) {
+    return false;
+  }
+  if (isLeaf(intersect)) {
+    return intersect === value;
+  }
+  return has(intersect, value);
+}
 
 function create(): MerkleSearchTree {
   return null;
 }
 
-function insert(tree: MerkleSearchTree, value: string): MerkleSearchTree {
+function insert(tree: MerkleSearchTree, value: MSTLeaf): MerkleSearchTree {
   const valueKey = MurmurHash(value);
   if (tree === null) {
     return { sub: [value], key: valueKey };
   }
-  const baseTree = tree;
   const valueLayer = layerFromKey(valueKey);
   const treeLayer = findRootLayer(tree);
 
@@ -56,58 +75,10 @@ function insert(tree: MerkleSearchTree, value: string): MerkleSearchTree {
       key: (low?.key ?? 0) ^ valueKey ^ (high?.key ?? 0),
     };
   }
-
   if (valueLayer < treeLayer) {
     return insertInLevel(tree, treeLayer, value, valueLayer, valueKey);
   }
-
-  // return buildLayer(rootLayer);
-
-  // const baseTree = normalizeDepth(tree, maxDepth);
-  // const baseTreeDepth = findDepth(baseTree);
-  // console.log('====');
-
-  // console.log(debug(valueTree));
-  // console.log(debug(baseTree));
-  // console.log({ baseTreeLvl: baseTreeDepth });
-
-  // function insertAt(tree: MSTNode, currentDepth: number): MerkleSearchTree {
-  //   if (currentDepth === valueTreeDepth) {
-  //     return {
-  //       key: tree.key ^ valueTree.key,
-  //       sub: insertInList(tree.sub, value),
-  //     };
-  //   }
-  //   // should we split ?
-  //   // const splitItem = tree.sub.find((a) => isNode(a) && value > itemMin(a) && value < itemMax(a));
-  //   // console.log({ splitItem });
-  //   return tree;
-  // }
-
-  // return insertAt(baseTree, valueTreeDepth);
-
-  // let current = valueLeaf;
-  // const mergeWith = getLevel(baseTree, value, valueLeafLvl);
-  // if (mergeWith === null) {
-  //   current = createNodeFromItem(current);
-  // } else {
-  //   const item = current.sub[0];
-  //   const itemHash = isLeaf(item) ? MurmurHash(item) : item.key;
-  //   console.log(debug(mergeWith));
-  //   console.log(debug(item));
-  //   const nextChildren = insertInList(mergeWith.sub, item);
-  //   current = {
-  //     sub: nextChildren,
-  //     key: mergeWith.key ^ itemHash,
-  //   };
-  // }
-  // for (let i = valueLeafLvl + 1; i <= baseTreeLvl; i++) {
-  //   const levelTree = getLevel(baseTree, value, i);
-  //   console.log('TODO: rebuild level', i);
-  //   console.log(debug(levelTree));
-  //   console.log(debug(current));
-  // }
-  return baseTree;
+  throw new Error('What ?');
 }
 
 function splitTree(tree: MSTNode, value: MSTLeaf): [MerkleSearchTree, MerkleSearchTree] {
@@ -205,27 +176,7 @@ function replaceAtIndex<T>(list: Array<T>, index: number, value: T): Array<T> {
   return [...list.slice(0, index), value, ...list.slice(index + 1)];
 }
 
-// function normalizeDepth(tree: MSTNode, level: number): MSTNode {
-//   const treeLvl = findDepth(tree);
-//   if (treeLvl > level) {
-//     throw new Error('Cannot reduce the max level');
-//   }
-//   let current: MSTNode = tree;
-//   for (let i = treeLvl; i <= level; i++) {
-//     current = createNodeFromItem(current);
-//   }
-//   return current;
-// }
-
-// function createNodeFromItem(item: MSTNode | MSTLeaf): MSTNode {
-//   const children = [item];
-//   return {
-//     sub: children,
-//     key: isLeaf(item) ? MurmurHash(item) : item.key,
-//   };
-// }
-
-function createNodeWithRootLayerOf(value: string, valueLayer: number, valueKey: number, rootLayer: number): MSTNode {
+function createNodeWithRootLayerOf(value: MSTLeaf, valueLayer: number, valueKey: number, rootLayer: number): MSTNode {
   let current: MSTNode = {
     key: valueKey,
     sub: [value],
@@ -269,47 +220,22 @@ function insertInList(list: MSTList, item: MSTLeaf | MSTNode): MSTList {
   return copy;
 }
 
-function listMin(list: MSTList): string {
+function listMin(list: MSTList): MSTLeaf {
   const first = list[0];
   return itemMin(first);
 }
 
-function listMax(list: MSTList): string {
+function listMax(list: MSTList): MSTLeaf {
   const last = list[list.length - 1];
   return itemMax(last);
 }
 
-function itemMin(item: MSTLeaf | MSTNode): string {
+function itemMin(item: MSTLeaf | MSTNode): MSTLeaf {
   return isNode(item) ? listMin(item.sub) : item;
 }
 
-function itemMax(item: MSTLeaf | MSTNode): string {
+function itemMax(item: MSTLeaf | MSTNode): MSTLeaf {
   return isNode(item) ? listMax(item.sub) : item;
-}
-
-// @ts-expect-error temp
-function getLayer(tree: MSTNode, value: string, targetLayer: number): MSTNode {
-  const treeRootLayer = findRootLayer(tree);
-  if (targetLayer > treeRootLayer) {
-    throw new Error('targetLayer bigger than tree layer');
-  }
-  let current = tree;
-  for (let layer = treeRootLayer; layer < targetLayer; layer++) {
-    const nextItem = current.sub.find((item) => {
-      if (isLeaf(item)) {
-        return item === value;
-      }
-      return itemMin(item) >= value && itemMax(item) <= value;
-    });
-    if (!nextItem) {
-      throw new Error('Layer not found ?');
-    }
-    if (isLeaf(nextItem)) {
-      throw new Error('Value already in the tree ?');
-    }
-    current = nextItem;
-  }
-  return current;
 }
 
 function findRootLayer(tree: MerkleSearchTree): number {
@@ -340,7 +266,7 @@ function isNode(item: MSTLeaf | MSTNode): item is MSTNode {
 }
 
 function layerFromKey(key: number): number {
-  const hexKey = hashToHex(key);
+  const hexKey = hashToUnsignedHex(key);
   let i = 0;
   while (hexKey.charAt(i) === '0') {
     i++;
@@ -348,7 +274,7 @@ function layerFromKey(key: number): number {
   return i;
 }
 
-function hashToHex(key: number): string {
+function hashToUnsignedHex(key: number): string {
   return ('00000000' + key.toString(16)).slice(-8);
 }
 
@@ -376,16 +302,20 @@ function build(...values: Array<MSTLeaf>): MerkleSearchTree {
     current.sub.push(value);
   });
   function withKeys(tree: MSTNode): MSTNode {
-    let key = 0;
+    let key: number | null = null;
     const subs = tree.sub.map((item) => {
       if (isNode(item)) {
         const sub = withKeys(item);
-        key = key ^ sub.key;
+        key = key === null ? sub.key : key ^ sub.key;
         return sub;
       }
-      key = key ^ MurmurHash(item);
+      const itemKey = MurmurHash(item);
+      key = key === null ? itemKey : key ^ itemKey;
       return item;
     });
+    if (key === null) {
+      throw new Error('No sub ?');
+    }
     return {
       sub: subs,
       key,
@@ -399,10 +329,11 @@ function debug(tree: MerkleSearchTree | MSTLeaf): string {
     return `[empty tree]`;
   }
   if (isLeaf(tree)) {
-    return `- ${hashToHex(MurmurHash(tree))} -> ${tree}`;
+    const key = MurmurHash(tree);
+    return `- ${key < 0 ? '-' : '+'}0x${hashToUnsignedHex(key)} -> ${tree}`;
   }
   return [
-    `> ${hashToHex(tree.key)} (${findRootLayer(tree)})`,
+    `> ${tree.key < 0 ? '-' : '+'}0x${hashToUnsignedHex(tree.key)} (${findRootLayer(tree)})`,
     ...tree.sub
       .map((i) => debug(i))
       .map((v) =>
@@ -413,45 +344,3 @@ function debug(tree: MerkleSearchTree | MSTLeaf): string {
       ),
   ].join('\n');
 }
-
-// function check(tree: MerkleSearchTree): void {
-//   if (tree === null) {
-//     return;
-//   }
-//   function checkInternal(tree: MSTNode, path: Array<number>): void {
-//     const depth = path.length;
-//     const hash = tree.sub.reduce((acc, item, index) => {
-//       const currentPath = [...path, index];
-//       if (isLeaf(item)) {
-//         const key = MurmurHash(item);
-//         const expectedDepth = levelFromKey(hashToHex(key));
-//         if (expectedDepth !== depth) {
-//           throw new Error(
-//             `Invalid depth in ${currentPath.join('>')} (expected ${expectedDepth}, got ${depth}), ${hashToHex(key)}`
-//           );
-//         }
-//         return acc ^ key;
-//       }
-//       checkInternal(item, currentPath);
-//       return acc ^ item.key;
-//     }, 0);
-//     if (hash !== tree.key) {
-//       throw new Error(`Invalid key in ${path.join('>')}`);
-//     }
-//   }
-//   return checkInternal(tree, []);
-// }
-
-// function insertInNode(node: MSTNode, item: MSTLeaf | MSTNode): MSTNode {
-//   const nextChildren = insertInList(node.children, item);
-//   return {
-//     level: node.level,
-//     children: nextChildren,
-//     hash: listHash(nextChildren),
-//   };
-// }
-
-// function normalizeTreesDepth(t1: MSTNode, t2: MSTNode): [MSTNode, MSTNode] {
-//   const maxLevel = Math.max(findMaxLevel(t1), findMaxLevel(t2));
-//   return [normalizeDepth(t1, maxLevel), normalizeDepth(t2, maxLevel)];
-// }
