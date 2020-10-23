@@ -1,8 +1,18 @@
-export * from './types';
-export { Kiip, KiipOptions } from './Kiip';
-export { MerkleTree } from './MerkleTree';
-export { Timestamp, MutableTimestamp } from './Timestamp';
-export { Clock } from './Clock';
-export { createKiipPromise, kiipCallbackFromAsync, createKiipCallbackSync, DONE_TOKEN } from './utils';
-export { KiipDocumentStore } from './KiipDocumentStore';
-export { KiipMemoryDb } from './KiipMemoryDb';
+export { Kiip, Items, KiipDatabase, KiipState, Item, HandleMessageResult } from './Kiip';
+export { HybridLogicalClock, HybridLogicalClockOptions, Timestamp } from './HybridLogicalClock';
+export { MurmurHash } from './MurmurHash';
+export {
+  MTBranch,
+  MTChildren,
+  MTHandleItemsResult,
+  MTHandleMessageResult,
+  MTItem,
+  MTLeaf,
+  MTNode,
+  MTNodeKey,
+  MTRootNode,
+  MTSyncMessage,
+  MTSyncMessageRequest,
+  MTSyncMessageResponse,
+  MerkleTree,
+} from './MerkleTree';

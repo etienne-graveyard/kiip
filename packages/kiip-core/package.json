@@ -38,7 +38,6 @@
     "test": "tsdx test --coverage"
   },
   "dependencies": {
-    "nanoid": "^3.1.12",
     "suub": "^3.1.0"
   },
   "devDependencies": {

@@ -52,16 +52,6 @@ export function MurmurHash(key: string, seed: number = 0): number {
   return h1 >>> 0;
 }
 
-// Returns a 16 char base 4 murmur hash
-export function MurmurHashBase4(key: string, seed?: number): string {
-  return ('00000000' + MurmurHash(key, seed).toString(4)).slice(-16);
-}
-
-// Returns a 8 char base 16 murmur hash
-export function MurmurHashHex(key: string, seed?: number): string {
-  return ('00000000' + MurmurHash(key, seed).toString(16)).slice(-8);
-}
-
 // Given two 32bit ints, returns the two multiplied together as a 32bit int.
 function x86Multiply(m: number, n: number): number {
   return (m & 0xffff) * n + ((((m >>> 16) * n) & 0xffff) << 16);
