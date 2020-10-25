@@ -1,26 +1,17 @@
-import { HybridLogicalClock, Timestamp } from './HybridLogicalClock';
-import { MerkleTree, MTSyncMessage, MTSyncMessageRequest, MTSyncMessageResponse } from './MerkleTree';
+import { HybridLogicalClock } from './HybridLogicalClock';
+import { Timestamp, TimestampWithConfig } from './Timestamp';
+import { MerkleTree, MerkleTreeSyncMessage } from './MerkleTree';
 import { SubscribeMethod, Subscription } from 'suub';
 
-export type Item<T> = { ts: string; payload: T };
+export type Item<T> = { ts: Timestamp; payload: T };
 export type Items<T> = Array<Item<T>>;
-
-export type HandleMessageResult<T> = {
-  responses: Array<MTSyncMessage> | null;
+export type HandleSyncResult<T> = {
+  responses: Array<MerkleTreeSyncMessage> | null;
   items: Items<T> | null;
 };
 
-export type Kiip<T> = {
-  onItems: SubscribeMethod<Items<T>>;
-  commit(payload: T): void;
-  prepareSync(): MTSyncMessageRequest;
-  handleMessage(message: MTSyncMessage): Promise<HandleMessageResult<T>>;
-  handleItems(items: Items<T>): Promise<void>;
-  getState(): KiipState;
-};
-
 export type KiipDatabase<T> = {
-  getItems(timestamps: Array<string>): Promise<Items<T>>;
+  getItems(timestamps: Array<Timestamp>): Promise<Items<T>>;
   update(tree: MerkleTree, clock: Timestamp, items: Items<T>): Promise<void>;
 };
 
@@ -29,110 +20,120 @@ export type KiipState = {
   tree: MerkleTree;
 };
 
-export const Kiip = {
-  restore: restoreKiip,
-  createInitialState: createKiipInitialState,
+export type KiipConfig = {
+  Timestamp: TimestampWithConfig;
+  now: () => number;
 };
 
-const HLC = HybridLogicalClock.create();
+const DEFAULT_CONFIG: Readonly<Required<KiipConfig>> = {
+  Timestamp: Timestamp.withConfig(),
+  now: () => Math.floor(Date.now() / 1000),
+};
 
-function restoreKiip<T>(initialState: KiipState, db: KiipDatabase<T>): Kiip<T> {
-  const itemsSub = Subscription() as Subscription<Items<T>>;
+export class Kiip<T> {
+  private readonly hlc: HybridLogicalClock;
+  private readonly db: KiipDatabase<T>;
+  private readonly itemsSub = Subscription() as Subscription<Items<T>>;
+  private readonly emitSub = Subscription() as Subscription<Item<T>>;
 
-  let clock = initialState.clock;
-  let tree: MerkleTree = initialState.tree;
+  private tree: MerkleTree;
+  private saveQueue: Items<T> = [];
+  private saving = false;
 
-  let saveQueue: Items<T> = [];
-  let saving = false;
-
-  return {
-    onItems: itemsSub.subscribe,
-    commit,
-    getState,
-    prepareSync,
-    handleMessage,
-    handleItems,
-  };
-
-  function getState(): KiipState {
-    return { tree, clock };
+  private constructor(initialState: KiipState, db: KiipDatabase<T>, config: KiipConfig) {
+    this.tree = initialState.tree;
+    this.db = db;
+    this.hlc = HybridLogicalClock.restore(initialState.clock, { Timestamp: config.Timestamp, now: config.now });
   }
 
-  function save() {
-    if (saving) {
-      return;
-    }
-    if (saveQueue.length === 0) {
-      return;
-    }
-    saving = true;
-    saveInternal();
+  onItems: SubscribeMethod<Items<T>> = this.itemsSub.subscribe;
+  onEmit: SubscribeMethod<Item<T>> = this.emitSub.subscribe;
+
+  getState(): KiipState {
+    return { tree: this.tree, clock: this.hlc.current };
   }
 
-  async function saveInternal() {
-    if (saving === false) {
+  private save() {
+    if (this.saving) {
+      return;
+    }
+    if (this.saveQueue.length === 0) {
+      return;
+    }
+    this.saving = true;
+    this.saveInternal();
+  }
+
+  private async saveInternal() {
+    if (this.saving === false) {
       throw new Error('What ?');
     }
-    if (saveQueue.length === 0) {
-      saving = false;
+    if (this.saveQueue.length === 0) {
+      this.saving = false;
       return;
     }
-    const items = saveQueue;
-    saveQueue = [];
-    await db.update(tree, clock, items);
-    saveInternal();
+    const items = this.saveQueue;
+    this.saveQueue = [];
+    await this.db.update(this.tree, this.hlc.current, items);
+    this.saveInternal();
   }
 
-  function commit(payload: T): void {
-    const nextClock = HLC.next(clock);
-    const ts = HLC.serialize(clock);
-
-    // update tree
-    tree = MerkleTree.insert(tree, ts);
-    clock = nextClock;
-
-    saveQueue.push({ ts, payload });
-    itemsSub.emit([{ ts, payload }]);
-    save();
+  commit(payload: T): void {
+    const ts = this.hlc.send();
+    this.tree = this.tree.insert(ts);
+    this.saveQueue.push({ ts, payload });
+    this.itemsSub.emit([{ ts, payload }]);
+    this.emitSub.emit({ ts, payload });
+    this.save();
   }
 
-  function prepareSync(): MTSyncMessageRequest {
-    return MerkleTree.prepareSync(tree);
+  prepareSync(): MerkleTreeSyncMessage {
+    return this.tree.prepareSync();
   }
 
-  async function handleItems(items: Items<T>): Promise<void> {
-    const result = MerkleTree.handleItems(
-      tree,
-      items.map((i) => i.ts)
-    );
-    tree = result.tree;
+  async handleItems(items: Items<T>): Promise<void> {
+    const result = this.tree.handleItems(items.map((i) => i.ts));
+    this.tree = result.tree;
 
     if (result.added) {
       const addedItems = result.added.map((ts) => notNil(items.find((i) => i.ts === ts)));
       addedItems.forEach((item) => {
-        clock = HLC.merge(clock, item.ts);
-        saveQueue.push(item);
+        this.hlc.receive(item.ts);
+        // clock = HLC.merge(clock, item.ts);
+        this.saveQueue.push(item);
       });
-      itemsSub.emit(addedItems);
-      save();
+      this.itemsSub.emit(addedItems);
+      this.save();
     }
   }
 
-  async function handleMessage(message: MTSyncMessageResponse | MTSyncMessageRequest): Promise<HandleMessageResult<T>> {
-    const { items, responses } = MerkleTree.handleMessage(tree, message);
-    const itemsResolved = items === null ? null : await db.getItems(items);
+  async handleSync(message: MerkleTreeSyncMessage): Promise<HandleSyncResult<T>> {
+    const { items, responses } = this.tree.handleSync(message);
+    const itemsResolved = items === null ? null : await this.db.getItems(items);
     return {
       responses,
       items: itemsResolved,
     };
   }
-}
 
-function createKiipInitialState(id?: string): KiipState {
-  return {
-    clock: HLC.create(id),
-    tree: MerkleTree.build(),
-  };
+  static create<T>(id: string, db: KiipDatabase<T>, config: Partial<KiipConfig> = {}): Kiip<T> {
+    const conf = { ...DEFAULT_CONFIG, ...config };
+    return new Kiip(
+      {
+        clock: HybridLogicalClock.create(id, { Timestamp: conf.Timestamp, now: conf.now }).current,
+        tree: MerkleTree.empty({ Timestamp: conf.Timestamp }),
+      },
+      db,
+      conf
+    );
+  }
+
+  static restore<T>(initialState: KiipState, db: KiipDatabase<T>, config: Partial<KiipConfig> = {}): Kiip<T> {
+    const conf = { ...DEFAULT_CONFIG, ...config };
+    return new Kiip(initialState, db, conf);
+  }
+
+  static DEFAULT_CONFIG = DEFAULT_CONFIG;
 }
 
 function notNil<T>(val: T | null | undefined): T {
