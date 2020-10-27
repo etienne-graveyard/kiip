@@ -53,31 +53,6 @@ export class Kiip<T> {
     return { tree: this.tree, clock: this.hlc.current };
   }
 
-  private save() {
-    if (this.saving) {
-      return;
-    }
-    if (this.saveQueue.length === 0) {
-      return;
-    }
-    this.saving = true;
-    this.saveInternal();
-  }
-
-  private async saveInternal() {
-    if (this.saving === false) {
-      throw new Error('What ?');
-    }
-    if (this.saveQueue.length === 0) {
-      this.saving = false;
-      return;
-    }
-    const items = this.saveQueue;
-    this.saveQueue = [];
-    await this.db.update(this.tree, this.hlc.current, items);
-    this.saveInternal();
-  }
-
   commit(payload: T): void {
     const ts = this.hlc.send();
     this.tree = this.tree.insert(ts);
@@ -114,6 +89,31 @@ export class Kiip<T> {
       responses,
       items: itemsResolved,
     };
+  }
+
+  private save() {
+    if (this.saving) {
+      return;
+    }
+    if (this.saveQueue.length === 0) {
+      return;
+    }
+    this.saving = true;
+    this.saveInternal();
+  }
+
+  private async saveInternal() {
+    if (this.saving === false) {
+      throw new Error('What ?');
+    }
+    if (this.saveQueue.length === 0) {
+      this.saving = false;
+      return;
+    }
+    const items = this.saveQueue;
+    this.saveQueue = [];
+    await this.db.update(this.tree, this.hlc.current, items);
+    this.saveInternal();
   }
 
   static create<T>(id: string, db: KiipDatabase<T>, config: Partial<KiipConfig> = {}): Kiip<T> {

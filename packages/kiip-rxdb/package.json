@@ -30,7 +30,7 @@
     "test": "tsdx test --coverage --passWithNoTests"
   },
   "dependencies": {
-    "rxdb": "^9.6.0"
+    "rxdb": "^9.7.1"
   },
   "devDependencies": {
     "@kiip/core": "^2.0.0-alpha.4",

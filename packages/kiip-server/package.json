@@ -7,6 +7,9 @@
   "bugs": {
     "url": "https://github.com/etienne-dldc/kiip/issues"
   },
+  "bin": {
+    "kiip-server": "./bin/kiip-server.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/etienne-dldc/kiip.git"
@@ -30,8 +33,14 @@
     "test": "tsdx test --coverage --passWithNoTests"
   },
   "dependencies": {
-    "nanoid": "^3.1.12",
+    "@types/dotenv": "^8.2.0",
+    "@types/pg": "^7.14.5",
+    "dotenv": "^8.2.0",
+    "got": "^11.8.0",
+    "nanoid": "^3.1.16",
+    "pg": "^8.4.2",
     "tumau": "^1.0.0-alpha.80",
+    "ws": "^7.3.1",
     "zod": "^1.11.8"
   },
   "devDependencies": {

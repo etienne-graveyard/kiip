@@ -1,0 +1,16 @@
+{
+  "name": "@kiip-example/server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Etienne Dldc",
+  "license": "MIT",
+  "scripts": {
+    "start": "dotenv kiip-server"
+  },
+  "dependencies": {
+    "@kiip/core": "2.0.0-alpha.4",
+    "@kiip/server": "2.0.0-alpha.4",
+    "dotenv": "^8.2.0",
+    "dotenv-cli": "^4.0.0"
+  }
+}

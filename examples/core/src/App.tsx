@@ -72,7 +72,7 @@ async function send(
   message: MerkleTreeSyncMessage,
 ) {
   const next = await client.handleSync(message);
-  // await wait(Math.floor(Math.random() * 1000));
+  await wait(Math.floor(Math.random() * 10));
   const items = next.items === null ? [] : next.items;
   const responses = next.responses === null ? [] : next.responses;
   if (items.length > 0) {
