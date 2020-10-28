@@ -1,3 +1,5 @@
 packages/*/**/node_modules/
 packages/*/**/dist/
+examples/*/**/node_modules/
+examples/*/**/dist/
 *.d.ts

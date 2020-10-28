@@ -123,7 +123,6 @@ export async function Core(): Promise<{ start: () => void }> {
         Route.GET(ROUTES.home, IsAuthenticated, (tools) => {
           const auth = tools.get(AuthentContext.Consumer);
           if (auth === null || auth.email === null) {
-            console.log('Hello demo');
             return JsonResponse.withJson({ hello: true });
           }
           // TODO: return list of documents
