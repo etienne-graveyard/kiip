@@ -1,8 +1,14 @@
+import { ContextStack, createContext, HttpError, Middleware } from '@tumau/core';
+import { JsonParserConsumer } from '@tumau/json';
 import * as z from 'zod';
-import { Middleware, Context, JsonParserConsumer, HttpError, ContextStack } from 'tumau';
 
-export function ZodValidator<T>(schema: z.Schema<T>) {
-  const Ctx = Context.create<T>();
+export type ZodValidatorInstance<T> = {
+  validate: Middleware;
+  getValue: (ctx: ContextStack) => T;
+};
+
+export function ZodValidator<T>(schema: z.Schema<T>): ZodValidatorInstance<T> {
+  const Ctx = createContext<T>();
 
   const validate: Middleware = async (ctx, next) => {
     const jsonBody = ctx.getOrFail(JsonParserConsumer);

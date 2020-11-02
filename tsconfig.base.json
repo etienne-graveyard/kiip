@@ -20,8 +20,9 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
+    "preserveSymlinks": false,
     "baseUrl": "./",
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "typeRoots": ["./node_modules/@types"],
     "esModuleInterop": true
   }

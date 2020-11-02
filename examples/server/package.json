@@ -8,8 +8,8 @@
     "start": "dotenv kiip-server"
   },
   "dependencies": {
-    "@kiip/core": "2.0.0-alpha.4",
-    "@kiip/server": "2.0.0-alpha.4",
+    "@kiip/core": "workspace:2.0.0-alpha.4",
+    "@kiip/server": "workspace:2.0.0-alpha.4",
     "dotenv": "^8.2.0",
     "dotenv-cli": "^4.0.0"
   }

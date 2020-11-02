@@ -7,9 +7,6 @@
   "bugs": {
     "url": "https://github.com/etienne-dldc/kiip/issues"
   },
-  "bin": {
-    "kiip-server": "./bin/kiip-server.js"
-  },
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/etienne-dldc/kiip.git"
@@ -19,6 +16,9 @@
   "main": "dist/index.js",
   "module": "dist/server.esm.js",
   "typings": "dist/index.d.ts",
+  "bin": {
+    "kiip-server": "./bin/kiip-server.js"
+  },
   "directories": {
     "example": "examples",
     "test": "tests"
@@ -33,24 +33,32 @@
     "test": "tsdx test --coverage --passWithNoTests"
   },
   "dependencies": {
-    "@types/dotenv": "^8.2.0",
+    "@tumau/core": "^1.0.0-alpha.83",
+    "@tumau/cors": "^1.0.0-alpha.83",
+    "@tumau/json": "^1.0.0-alpha.83",
+    "@tumau/router": "^1.0.0-alpha.83",
+    "@tumau/ws": "^1.0.0-alpha.83",
+    "@types/node-fetch": "^2.5.7",
     "@types/pg": "^7.14.5",
+    "@types/ws": "^7.2.9",
+    "chemin": "^6.0.0",
     "dotenv": "^8.2.0",
     "got": "^11.8.0",
+    "miid": "^3.0.1",
     "nanoid": "^3.1.16",
+    "node-fetch": "^2.6.1",
     "pg": "^8.4.2",
-    "tumau": "^1.0.0-alpha.80",
     "ws": "^7.3.1",
-    "zod": "^1.11.8"
+    "zod": "^1.11.10"
   },
   "devDependencies": {
-    "@kiip/core": "^2.0.0-alpha.4",
-    "@types/jest": "^26.0.14",
-    "codecov": "^3.7.2",
+    "@kiip/core": "workspace:*",
+    "codecov": "^3.8.0",
     "core-js": "3.6.5",
+    "regenerator-runtime": "^0.13.7",
     "tsdx": "^0.14.1",
-    "tslib": "^2.0.1",
-    "typescript": "^4.0.3"
+    "tslib": "^2.0.3",
+    "typescript": "^4.0.5"
   },
   "peerDependencies": {
     "@kiip/core": "2.0.0-alpha.4"

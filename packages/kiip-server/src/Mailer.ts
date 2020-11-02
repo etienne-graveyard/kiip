@@ -1,4 +1,4 @@
-import got from 'got';
+import fetch from 'node-fetch';
 
 interface Message {
   to: string;
@@ -42,12 +42,16 @@ export class Mailer {
     const auth = 'Basic ' + Buffer.from('api:' + this.mailgunApiPass).toString('base64');
 
     // const response = await got.post('https://api.eu.mailgun.net/v3/mail.etienne.tech/messages', {
-    const response = await got.post(this.mailgunUrl, { headers: { Authorization: auth }, form: body });
+    const response = await fetch(this.mailgunUrl, {
+      method: 'post',
+      body: JSON.stringify(body),
+      headers: { Authorization: auth, 'Content-Type': 'application/json' },
+    });
 
-    if (response.statusCode !== 200) {
-      throw new Error(`Cannot send mail ! (not 200 status ${response.statusCode})`);
+    if (response.status !== 200) {
+      throw new Error(`Cannot send mail ! (not 200 status ${response.status})`);
     }
-    if (response.headers['content-type'] !== 'application/json') {
+    if (response.headers.get('content-type') !== 'application/json') {
       throw new Error(`Cannot send mail (non-json response) !`);
     }
     return;
