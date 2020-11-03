@@ -1,1 +1,0 @@
-{"version":3,"file":"client.cjs.development.js","sources":["../src/index.ts"],"sourcesContent":["export const KiipClient = {};\n"],"names":["KiipClient"],"mappings":";;;;IAAaA,UAAU,GAAG;;;;"}
