@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { Pool } from 'pg';
+import { MerkleTreeRoot } from '@kiip/core';
 
 export const Access = z.enum(['Owner', 'Editor']);
 export type Access = z.infer<typeof Access>;
@@ -71,10 +72,33 @@ export class Database {
     return first;
   }
 
-  async insertDocument(docId: string, title: string, owner: string): Promise<Document> {
-    console.log({ docId, title, owner });
-
-    throw new Error('TODO');
+  async insertDocument(
+    docId: string,
+    title: string,
+    owner: string,
+    clock: string,
+    tree: MerkleTreeRoot
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      // insert doc
+      await client.query<any, [string, string, string, string]>(
+        'INSERT INTO documents(id, title, clock, merkle) VALUES($1, $2, $3, $4)',
+        [docId, title, clock, JSON.stringify(tree)]
+      );
+      // set owner access
+      await client.query<any, [string, string, Access]>(
+        'INSERT INTO access(user_email, document_id, access) VALUES ($1, $2, $3)',
+        [owner, docId, 'Owner']
+      );
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
   }
 
   async findUserDocuments(token: string): Promise<User | null> {

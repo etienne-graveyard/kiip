@@ -27,7 +27,7 @@ export class Kiip {
   Timestamp: TimestampWithConfig;
   MerkleTree: MerkleTree;
 
-  private constructor(config: KiipConfig) {
+  constructor(config: Partial<KiipConfig> = {}) {
     const { Timestamp, now } = {
       ...DEFAULT_CONFIG,
       ...config,

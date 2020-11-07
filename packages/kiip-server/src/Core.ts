@@ -20,6 +20,7 @@ import { ZodValidator } from './ZodValidator';
 import { createEphemereBidimensionalMap } from './tools/EphemereBidimensionalMap';
 import { WebsocketServer, ConnectionData } from './WebsocketServer';
 import { Access, Database } from './Database';
+import { Kiip, Timestamp } from '@kiip/core';
 
 const RequestLoginBodyValidator = ZodValidator(
   z.object({
@@ -77,6 +78,12 @@ const AuthentContext = createContext<AuthState>(null);
 const MAX_SIMULTANEOUS_LOGIN = 5;
 
 export async function Core(): Promise<{ start: () => void }> {
+  const ID_LENGTH = 10;
+
+  const TS = Timestamp.withConfig({ idLength: ID_LENGTH });
+
+  const K = new Kiip({ Timestamp: TS });
+
   const loginCodeCache = createEphemereBidimensionalMap<string>({
     defaultTtl: 3 * 60, // 3 minutes
   });
@@ -185,11 +192,15 @@ export async function Core(): Promise<{ start: () => void }> {
             throw new HttpError.Unauthorized(auth?.reason);
           }
           const { title } = CreateDocumentBodyValidator.getValue(tools);
-          const docId = Random.nanoid();
-
-          // const kiip = Kiip.create(docId, )
-
-          const document = await database.insertDocument(docId, title, auth.email);
+          const docId = Random.nanoid(ID_LENGTH);
+          const initState = K.create(docId);
+          const document = await database.insertDocument(
+            docId,
+            title,
+            auth.email,
+            initState.clock.toString(),
+            initState.tree
+          );
           return JsonResponse.withJson(document);
         }),
         Route.POST(ROUTES.document, IsAuthenticated, UpdateDocumentBodyValidator.validate, async (tools) => {
