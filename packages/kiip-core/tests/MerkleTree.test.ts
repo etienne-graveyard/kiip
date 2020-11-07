@@ -1,8 +1,10 @@
 import { MerkleTree } from '../src/MerkleTree';
 import { Timestamp } from '../src/Timestamp';
 
+const MT = new MerkleTree({ Timestamp: Timestamp.withConfig() });
+
 test('build tree', () => {
-  expect(MerkleTree.empty({ Timestamp: Timestamp.withConfig() }).root).toEqual(null);
+  expect(MT.empty()).toEqual(null);
 });
 
 // describe('Build', () => {

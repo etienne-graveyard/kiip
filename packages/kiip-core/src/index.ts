@@ -1,4 +1,4 @@
-export { Kiip, Items, KiipDatabase, KiipState, Item, HandleSyncResult } from './Kiip';
+export { Kiip, KiipState, KiipConfig, KiipHandleItemsResult } from './Kiip';
 export { HybridLogicalClock, HybridLogicalClockConfig } from './HybridLogicalClock';
 export { Timestamp, TimestampObj, TimestampConfig, TimestampWithConfig } from './Timestamp';
 export { MurmurHash } from './MurmurHash';
@@ -6,8 +6,9 @@ export {
   MerkleTree,
   MerkleTreeBranch,
   MerkleTreeChildren,
-  MTHandleItemsResult,
-  MTHandleSyncResult,
+  MerkleTreeHandleItemsResult,
+  MerkleTreeHandleSyncResult,
+  MerkleTreeSyncRootBase,
   MerkleTreeLeaf,
   MerkleTreeNode,
   MerkleTreeNodeKey,

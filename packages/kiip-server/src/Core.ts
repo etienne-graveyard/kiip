@@ -42,6 +42,12 @@ const UpdateDocumentBodyValidator = ZodValidator(
   })
 );
 
+const CreateDocumentBodyValidator = ZodValidator(
+  z.object({
+    title: z.string(),
+  })
+);
+
 const ROUTES = {
   home: Chemin.create(),
   requestLogin: Chemin.create('request-login'),
@@ -110,7 +116,7 @@ export async function Core(): Promise<{ start: () => void }> {
     mainMiddleware: compose(
       CorsPackage({
         allowOrigin: Envs.ALLOWED_APPS.map((url) => url.origin),
-        allowHeaders: ['content-type'],
+        allowHeaders: ['content-type', 'authorization'],
         allowCredentials: true,
       }),
       JsonPackage(),
@@ -122,7 +128,8 @@ export async function Core(): Promise<{ start: () => void }> {
             return JsonResponse.withJson({ hello: true });
           }
           // TODO: return list of documents
-          throw new HttpError.Internal(`TODO`);
+          // throw new HttpError.Internal(`TODO`);
+          return JsonResponse.withJson([]);
         }),
         Route.POST(ROUTES.requestLogin, HandleZodError, RequestLoginBodyValidator.validate, async (tools) => {
           const { email } = RequestLoginBodyValidator.getValue(tools);
@@ -150,8 +157,12 @@ export async function Core(): Promise<{ start: () => void }> {
           if (!code || code !== loginCode) {
             throw new HttpError.Unauthorized(`Invalid code`);
           }
-          // TODO: find or create user with token
+          const user = await database.findUserByEmail(email);
+          if (user) {
+            return JsonResponse.withJson({ token: user.token });
+          }
           const token = Random.nanoid();
+          await database.insertUser(email, token);
           return JsonResponse.withJson({ token });
         }),
         Route.GET(ROUTES.document, IsAuthenticated, async (tools) => {
@@ -166,6 +177,19 @@ export async function Core(): Promise<{ start: () => void }> {
             throw new HttpError.NotFound();
           }
           const document = await database.findDocument(docId);
+          return JsonResponse.withJson(document);
+        }),
+        Route.POST(ROUTES.createDocument, IsAuthenticated, CreateDocumentBodyValidator.validate, async (tools) => {
+          const auth = tools.get(AuthentContext.Consumer);
+          if (auth === null || auth.email === null) {
+            throw new HttpError.Unauthorized(auth?.reason);
+          }
+          const { title } = CreateDocumentBodyValidator.getValue(tools);
+          const docId = Random.nanoid();
+
+          // const kiip = Kiip.create(docId, )
+
+          const document = await database.insertDocument(docId, title, auth.email);
           return JsonResponse.withJson(document);
         }),
         Route.POST(ROUTES.document, IsAuthenticated, UpdateDocumentBodyValidator.validate, async (tools) => {
@@ -216,13 +240,6 @@ export async function Core(): Promise<{ start: () => void }> {
           }
           return next(tools);
         }),
-        // SendLoginCode(auth),
-        // ValidateLoginCode(auth),
-        // SendSignupCode(auth),
-        // ValidateSignupCode(auth),
-        // Logout,
-        // CheckAuthentication(database),
-        // Connect(auth),
         Route.fallback(() => {
           throw new HttpError.NotFound();
         }),

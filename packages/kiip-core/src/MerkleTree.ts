@@ -30,12 +30,12 @@ export type MerkleTreeSyncResponse = {
 
 export type MerkleTreeSyncMessage = MerkleTreeSyncRequest | MerkleTreeSyncResponse | MerkleTreeSyncRootBase;
 
-export type MTHandleItemsResult = {
+export type MerkleTreeHandleItemsResult = {
   added: Array<Timestamp> | null;
-  tree: MerkleTree;
+  tree: MerkleTreeRoot;
 };
 
-export type MTHandleSyncResult = {
+export type MerkleTreeHandleSyncResult = {
   responses: Array<MerkleTreeSyncMessage> | null;
   items: Array<Timestamp> | null;
 };
@@ -51,16 +51,17 @@ const DEFAULT_CONFIG: Readonly<Required<MerkleTreeConfig>> = {
 };
 
 export class MerkleTree {
-  readonly root: MerkleTreeRoot;
   readonly config: Required<MerkleTreeConfig>;
 
-  private constructor(root: MerkleTreeRoot, config: MerkleTreeConfig) {
-    this.config = config;
-    this.root = root;
+  constructor(config: Partial<MerkleTreeConfig> = {}) {
+    this.config = {
+      ...DEFAULT_CONFIG,
+      ...config,
+    };
   }
 
-  prepareSync(): MerkleTreeSyncRequest | MerkleTreeSyncRootBase {
-    if (this.root === null) {
+  prepareSync(root: MerkleTreeRoot): MerkleTreeSyncRequest | MerkleTreeSyncRootBase {
+    if (root === null) {
       // local is empty, just request root path
       return {
         type: 'Request',
@@ -71,43 +72,43 @@ export class MerkleTree {
     // send local root base and key
     return {
       type: 'RootBase',
-      base: this.root.base,
-      key: this.root.key,
+      base: root.base,
+      key: root.key,
     };
   }
 
-  handleItems(items: Array<Timestamp>): MTHandleItemsResult {
+  handleItems(root: MerkleTreeRoot, items: Array<Timestamp>): MerkleTreeHandleItemsResult {
     if (items.length === 0) {
-      return { tree: this, added: null };
+      return { tree: root, added: null };
     }
     const added: Array<Timestamp> = [];
     // eslint-disable-next-line @typescript-eslint/no-this-alias
-    let nextTree: MerkleTree = this;
+    let nextRoot: MerkleTreeRoot = root;
     items.forEach((item) => {
-      if (nextTree.has(item)) {
+      if (this.has(nextRoot, item)) {
         console.log('Already has ' + item.toString());
         return;
       }
-      nextTree = nextTree.insert(item);
+      nextRoot = this.insert(nextRoot, item);
       added.push(item);
     });
     if (added.length === 0) {
-      return { tree: this, added: null };
+      return { tree: root, added: null };
     }
-    return { tree: nextTree, added };
+    return { tree: nextRoot, added };
   }
 
-  has(item: Timestamp): boolean {
-    if (this.root === null) {
+  has(root: MerkleTreeRoot, item: Timestamp): boolean {
+    if (root === null) {
       return false;
     }
     // const [time, value] = HLC.extractTime(item);
     const key = timeNumberToBase4(item.time);
-    if (!key.startsWith(this.root.base)) {
+    if (!key.startsWith(root.base)) {
       return false;
     }
-    const relativeKey = key.slice(this.root.base.length);
-    let current: MerkleTreeNode = this.root;
+    const relativeKey = key.slice(root.base.length);
+    let current: MerkleTreeNode = root;
     for (let i = 0; i < relativeKey.length; i++) {
       if ('items' in current) {
         throw new Error('Invalid tree ?');
@@ -125,47 +126,47 @@ export class MerkleTree {
     return current.items.includes(item.idCounter);
   }
 
-  explode(): Array<Timestamp> {
-    if (this.root === null) {
+  explode(root: MerkleTreeRoot): Array<Timestamp> {
+    if (root === null) {
       return [];
     }
-    return this.explodeInternal(this.root.base, this.root);
+    return this.explodeInternal(root.base, root);
   }
 
-  insert(item: Timestamp): MerkleTree {
-    if (this.root === null) {
-      return MerkleTree.from([item], this.config);
+  insert(root: MerkleTreeRoot, item: Timestamp): MerkleTreeRoot {
+    if (root === null) {
+      return this.from([item]);
     }
-    if (this.has(item)) {
-      return this;
+    if (this.has(root, item)) {
+      return root;
     }
-    return MerkleTree.from([...this.explode(), item], this.config);
+    return this.from([...this.explode(root), item]);
   }
 
-  handleSync(message: MerkleTreeSyncMessage): MTHandleSyncResult {
+  handleSync(root: MerkleTreeRoot, message: MerkleTreeSyncMessage): MerkleTreeHandleSyncResult {
     if (message.type === 'RootBase') {
-      return this.handleSyncRootBase(message);
+      return this.handleSyncRootBase(root, message);
     }
     if (message.type === 'Request') {
-      return this.handleSyncRequest(message);
+      return this.handleSyncRequest(root, message);
     }
     if (message.type === 'Response') {
-      return this.handleSyncResponse(message);
+      return this.handleSyncResponse(root, message);
     }
     throw new Error('Unhandled message type');
   }
 
-  private handleSyncRootBase(message: MerkleTreeSyncRootBase): MTHandleSyncResult {
-    if (this.root === null) {
+  private handleSyncRootBase(root: MerkleTreeRoot, message: MerkleTreeSyncRootBase): MerkleTreeHandleSyncResult {
+    if (root === null) {
       return { items: null, responses: [{ type: 'Request', path: '', key: null }] };
     }
-    if (message.base === this.root.base) {
-      if (message.key === this.root.key) {
+    if (message.base === root.base) {
+      if (message.key === root.key) {
         return { items: null, responses: null };
       }
       return {
         items: null,
-        responses: [{ type: 'Response', path: this.root.base, key: this.root.key, children: getChildren(this.root) }],
+        responses: [{ type: 'Response', path: root.base, key: root.key, children: getChildren(root) }],
       };
     }
     // find common base
@@ -173,24 +174,24 @@ export class MerkleTree {
     let index = 0;
     while (
       index < message.base.length &&
-      index < this.root.base.length &&
-      message.base.charAt(index) === this.root.base.charAt(index)
+      index < root.base.length &&
+      message.base.charAt(index) === root.base.charAt(index)
     ) {
-      commonBase += this.root.base.charAt(index);
+      commonBase += root.base.charAt(index);
       index++;
     }
-    const found = this.findNode(commonBase);
+    const found = this.findNode(root, commonBase);
     return { items: null, responses: [{ type: 'Request', path: commonBase, key: found ? found.node.key : null }] };
   }
 
-  private handleSyncRequest(message: MerkleTreeSyncRequest): MTHandleSyncResult {
+  private handleSyncRequest(root: MerkleTreeRoot, message: MerkleTreeSyncRequest): MerkleTreeHandleSyncResult {
     // remote send a path and a key
-    return this.syncNode(message.path, message.key);
+    return this.syncNode(root, message.path, message.key);
   }
 
-  private handleSyncResponse(message: MerkleTreeSyncResponse): MTHandleSyncResult {
+  private handleSyncResponse(root: MerkleTreeRoot, message: MerkleTreeSyncResponse): MerkleTreeHandleSyncResult {
     // remote is sending it's children at message.path
-    const found = this.findNode(message.path);
+    const found = this.findNode(root, message.path);
     if (!found) {
       throw new Error('We should have this node because we send it !');
     }
@@ -217,7 +218,7 @@ export class MerkleTree {
         const subPath = message.path + key;
         // const subNode = this.findNode(subPath);
         const subRemote = remoteChildren[key] ?? null;
-        const subResult = this.syncNode(subPath, subRemote);
+        const subResult = this.syncNode(root, subPath, subRemote);
         if (subResult.items) {
           items.push(...subResult.items);
         }
@@ -249,8 +250,8 @@ export class MerkleTree {
     throw new Error('Children should have the same type');
   }
 
-  private syncNode(path: string, remoteKey: number | null): MTHandleSyncResult {
-    const found = this.findNode(path);
+  private syncNode(root: MerkleTreeRoot, path: string, remoteKey: number | null): MerkleTreeHandleSyncResult {
+    const found = this.findNode(root, path);
     if (remoteKey === null) {
       // remote has nothing at this node
       if (found === null) {
@@ -285,28 +286,28 @@ export class MerkleTree {
     };
   }
 
-  private findNode(path: string): { node: MerkleTreeNode; path: string } | null {
-    if (this.root === null) {
+  private findNode(root: MerkleTreeRoot, path: string): { node: MerkleTreeNode; path: string } | null {
+    if (root === null) {
       return null;
     }
-    if (path.length <= this.root.base.length) {
+    if (path.length <= root.base.length) {
       // path is 01 or 00, base is 000
-      if (this.root.base.startsWith(path)) {
+      if (root.base.startsWith(path)) {
         // this also cover the case where path === base
-        return { node: this.root, path: this.root.base }; // return root because 000 is like 00->0
+        return { node: root, path: root.base }; // return root because 000 is like 00->0
       }
       return null;
     }
     // path is 000 or 010, base is 00
     // requested path is more precise
     // requested is either inside or outside
-    if (path.startsWith(this.root.base) === false) {
+    if (path.startsWith(root.base) === false) {
       // outside
       return null;
     }
     // search in tree
-    const pathQueue = path.slice(this.root.base.length).split('') as Array<MerkleTreeNodeKey>;
-    let current: MerkleTreeNode = this.root;
+    const pathQueue = path.slice(root.base.length).split('') as Array<MerkleTreeNodeKey>;
+    let current: MerkleTreeNode = root;
     while (pathQueue.length > 0) {
       const keyChar = pathQueue.shift();
       if (!keyChar) {
@@ -337,8 +338,8 @@ export class MerkleTree {
     }, []);
   }
 
-  toString(): string {
-    if (this.root === null) {
+  toString(root: MerkleTreeRoot): string {
+    if (root === null) {
       return '[EMPTY]';
     }
     const handleNode = (node: MerkleTreeNode, depth: number): Array<string> => {
@@ -355,11 +356,11 @@ export class MerkleTree {
         return acc;
       }, []);
     };
-    return [this.root.base, ...handleNode(this.root, 1)].join('\n');
+    return [root.base, ...handleNode(root, 1)].join('\n');
   }
 
-  toJSON(): unknown {
-    if (this.root === null) {
+  toJSON(root: MerkleTreeRoot): unknown {
+    if (root === null) {
       return null;
     }
     const handleNode = (node: MerkleTreeNode): unknown => {
@@ -374,16 +375,16 @@ export class MerkleTree {
         return acc;
       }, {});
     };
-    return handleNode(this.root);
+    return handleNode(root);
   }
 
-  static empty(config: MerkleTreeConfig): MerkleTree {
-    return new MerkleTree(null, config);
+  empty(): MerkleTreeRoot {
+    return null;
   }
 
-  static from(timestamps: Array<Timestamp>, config: MerkleTreeConfig): MerkleTree {
+  from(timestamps: Array<Timestamp>): MerkleTreeRoot {
     if (timestamps.length === 0) {
-      return new MerkleTree(null, config);
+      return null;
     }
     const handled = new Set<string>();
     const itemsParsed: Array<{ time: string; value: string }> = [];
@@ -405,7 +406,7 @@ export class MerkleTree {
     const timeGroupsArr = Object.entries(timeGroups);
     if (timeGroupsArr.length === 1) {
       const [base, items] = timeGroupsArr[0];
-      return new MerkleTree({ base, items, key: listHash(base, items) }, config);
+      return { base, items, key: listHash(base, items) };
     }
     let nodes = mapObject(timeGroups, (items, base): MerkleTreeNode => ({ items, key: listHash(base, items) }));
     while (Object.keys(nodes).length > 1) {
@@ -413,7 +414,7 @@ export class MerkleTree {
       nodes = mapObject(group, (v): MerkleTreeNode => ({ ...v, key: subsHash(v) }));
     }
     const [base, root] = Object.entries(nodes)[0];
-    return new MerkleTree({ base, ...root }, config);
+    return { base, ...root };
   }
 
   static readonly DEFAULT_CONFIG = DEFAULT_CONFIG;

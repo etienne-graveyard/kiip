@@ -9,10 +9,12 @@ export type User = {
   token: string;
 };
 
+export type AccessObject = { [email: string]: Access };
+
 export type Document = {
   id: string;
   title: string;
-  access: { [email: string]: Access };
+  access: AccessObject;
 };
 
 export class Database {
@@ -24,7 +26,8 @@ export class Database {
     });
   }
 
-  async init() {
+  async init(): Promise<void> {
+    console.log('TODO: Check db');
     // TODO: Check db
     // const res = await this.pool.query(
     //   `SELECT * FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema';`
@@ -42,6 +45,41 @@ export class Database {
       return null;
     }
     return first;
+  }
+
+  async findUserByEmail(email: string): Promise<User | null> {
+    const res = await this.pool.query<{ email: string; token: string }, [string]>(
+      `SELECT * FROM users WHERE email=$1 LIMIT 1`,
+      [email]
+    );
+    const first = res.rows[0];
+    if (!first) {
+      return null;
+    }
+    return first;
+  }
+
+  async insertUser(email: string, token: string): Promise<User> {
+    const res = await this.pool.query<{ email: string; token: string }, [string, string]>(
+      `INSERT INTO users(email, token) VALUES($1, $2) RETURNING *`,
+      [email, token]
+    );
+    const first = res.rows[0];
+    if (!first) {
+      throw new Error('Unexpected db response');
+    }
+    return first;
+  }
+
+  async insertDocument(docId: string, title: string, owner: string): Promise<Document> {
+    console.log({ docId, title, owner });
+
+    throw new Error('TODO');
+  }
+
+  async findUserDocuments(token: string): Promise<User | null> {
+    console.log({ token });
+    throw new Error('TODO');
   }
 
   async findUserAccess(email: string, docId: string): Promise<Access | null> {

@@ -32,8 +32,8 @@ export class TimestampWithConfig {
     this.config = config;
   }
 
-  create(obj: TimestampObj): Timestamp;
   create(time: number, counter: number, id: string): Timestamp;
+  create(obj: TimestampObj): Timestamp;
   create(time: number | TimestampObj, counter?: number, id?: string): Timestamp {
     if (typeof time !== 'number') {
       return new Timestamp(time, this.config);

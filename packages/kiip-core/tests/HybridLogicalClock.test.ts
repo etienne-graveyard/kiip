@@ -1,4 +1,4 @@
-import { HybridLogicalClock, HybridLogicalClockConfig } from '../src/HybridLogicalClock';
+import { HybridLogicalClock } from '../src/HybridLogicalClock';
 import { Timestamp } from '../src/Timestamp';
 
 const fakeNow = jest.fn().mockImplementation(() => {
@@ -7,21 +7,23 @@ const fakeNow = jest.fn().mockImplementation(() => {
 
 const TS = Timestamp.withConfig();
 
-const config: HybridLogicalClockConfig = { now: fakeNow, Timestamp: TS };
+const HLC = new HybridLogicalClock({ now: fakeNow, Timestamp: TS });
 
 describe('HybridLogicalClock', () => {
   test('Create HybridLogicalClock', () => {
     fakeNow.mockReturnValueOnce(1603265000);
-    expect(() => HybridLogicalClock.create('12345678', config)).not.toThrow();
+    expect(() => HLC.create('12345678')).not.toThrow();
   });
 
   test('send', () => {
     fakeNow.mockReturnValueOnce(1603265000);
-    const hlc = HybridLogicalClock.create('12345678', config);
+    let hlc = HLC.create('12345678');
     fakeNow.mockReturnValueOnce(1603265000);
-    expect(hlc.send().toString()).toBe('1fovof800112345678');
+    hlc = HLC.send(hlc);
+    expect(hlc.toString()).toBe('1fovof800112345678');
     fakeNow.mockReturnValueOnce(1603265000);
-    expect(hlc.send().toObject()).toEqual({ counter: 2, id: '12345678', time: 1603265000 });
+    hlc = HLC.send(hlc);
+    expect(hlc.toObject()).toEqual({ counter: 2, id: '12345678', time: 1603265000 });
 
     // move time
     // fakeNow.mockReturnValueOnce(1603265001);
