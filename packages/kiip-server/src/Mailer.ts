@@ -24,10 +24,11 @@ export class Mailer {
 
   async sendMail(msg: Message): Promise<void> {
     if (this.testMode) {
-      console.info(`Mail Test Mode is ON`);
-      console.info(`<======>`);
+      console.info(`<====== Mail Test Mode is ON =====>`);
+      console.info(`>> To: ${msg.to}`);
+      console.info(`-----------------------------------`);
       console.info(msg.text);
-      console.info(`<======>`);
+      console.info(`<=================================>`);
       return;
     }
 

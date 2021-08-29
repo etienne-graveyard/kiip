@@ -1,15 +1,8 @@
 {
-  "name": "@kiip/core",
+  "name": "@kiip/server-types",
   "version": "2.0.0-alpha.4",
-  "description": "A CRDT based database",
-  "keywords": [
-    "crdt",
-    "database",
-    "local",
-    "p2p",
-    "ts",
-    "typescript"
-  ],
+  "description": "Types for Kiip Server",
+  "keywords": [],
   "homepage": "https://github.com/etienne-dldc/kiip#readme",
   "bugs": {
     "url": "https://github.com/etienne-dldc/kiip/issues"
@@ -21,7 +14,7 @@
   "license": "MIT",
   "author": "Etienne Dldc <e.deladonchamps@gmail.com>",
   "main": "dist/index.js",
-  "module": "dist/core.esm.js",
+  "module": "dist/server-types.esm.js",
   "typings": "dist/index.d.ts",
   "directories": {
     "example": "examples",
@@ -32,20 +25,13 @@
   ],
   "scripts": {
     "build": "tsdx build",
-    "codecov": "codecov",
     "start": "tsdx watch",
-    "test": "tsdx test --coverage",
-    "test:watch": "tsdx test --watch"
+    "test": "tsdx test --passWithNoTests"
   },
   "dependencies": {
-    "suub": "^3.1.0"
+    "zod": "^1.11.10"
   },
   "devDependencies": {
-    "@types/jest": "^26.0.15",
-    "codecov": "^3.8.1",
-    "core-js": "3.7.0",
-    "regenerator-runtime": "^0.13.7",
-    "ts-dedent": "^2.0.0",
     "tsdx": "^0.14.1",
     "tslib": "^2.0.3",
     "typescript": "^4.0.5"

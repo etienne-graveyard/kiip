@@ -1,9 +1,6 @@
-import * as z from 'zod';
 import { Pool } from 'pg';
 import { MerkleTreeRoot } from '@kiip/core';
-
-export const Access = z.enum(['Owner', 'Editor']);
-export type Access = z.infer<typeof Access>;
+import { Access } from '@kiip/server-types';
 
 export type User = {
   email: string;
@@ -101,9 +98,12 @@ export class Database {
     }
   }
 
-  async findUserDocuments(token: string): Promise<User | null> {
-    console.log({ token });
-    throw new Error('TODO');
+  async findUserDocuments(token: string): Promise<Array<Document>> {
+    const res = await this.pool.query<Document, [string]>(
+      `SELECT documents.id, documents.title, access.access FROM users LEFT JOIN access ON users.email = access.user_email LEFT JOIN documents ON documents.id = access.document_id WHERE users.token = $1`,
+      [token]
+    );
+    return res.rows;
   }
 
   async findUserAccess(email: string, docId: string): Promise<Access | null> {
@@ -112,14 +112,34 @@ export class Database {
   }
 
   async findDocument(docId: string): Promise<Document> {
-    console.log({ docId });
-    throw new Error('TODO');
+    const [docRes, accessRes] = await Promise.all([
+      this.pool.query<{ id: string; title: string }, [string]>(
+        `SELECT documents.id, documents.title FROM documents WHERE documents.id = $1 LIMIT 1`,
+        [docId]
+      ),
+      this.pool.query<{ email: string; access: Access }, [string]>(
+        `SELECT access.user_email AS email, access.access FROM documents LEFT JOIN access ON access.document_id = documents.id WHERE documents.id = $1`,
+        [docId]
+      ),
+    ]);
+    const doc = docRes.rows[0];
+    if (!doc) {
+      throw new Error('Not found');
+    }
+    const access = accessRes.rows.reduce<AccessObject>((acc, item) => {
+      acc[item.email] = item.access;
+      return acc;
+    }, {});
+
+    return {
+      id: doc.id,
+      title: doc.title,
+      access,
+    };
   }
 
-  async updateDocument(
-    docId: string,
-    updates: { title: string; access: Record<string, 'Owner' | 'Editor'> }
-  ): Promise<Document> {
+  async updateDocument(docId: string, updates: { title: string; access: Record<string, Access> }): Promise<Document> {
+    // TODO: make sure there is at least one owner
     console.log({ updates, docId });
     throw new Error('TODO');
   }

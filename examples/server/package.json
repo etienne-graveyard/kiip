@@ -5,12 +5,13 @@
   "author": "Etienne Dldc",
   "license": "MIT",
   "scripts": {
-    "start": "dotenv kiip-server"
+    "start": "nodemon --exec 'dotenv kiip-server'"
   },
   "dependencies": {
     "@kiip/core": "workspace:2.0.0-alpha.4",
     "@kiip/server": "workspace:2.0.0-alpha.4",
     "dotenv": "^8.2.0",
-    "dotenv-cli": "^4.0.0"
+    "dotenv-cli": "^4.0.0",
+    "nodemon": "^2.0.6"
   }
 }
